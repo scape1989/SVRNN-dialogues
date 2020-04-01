@@ -43,6 +43,7 @@ def get_one_thread_samples(thread, max_n_agents, n_prev_sents, test=False):
 
         if adr_id == '-':
             if len(sents) > 2:
+                # TODO: hyperparameter
                 if len(sents) > 9:
                     sents = sents[:9]
                 sample_json = Sample(sents)
@@ -118,7 +119,7 @@ def main(argv):
     path = Path(argv.train_data)
     os.chdir(path.parent)
 
-    train_dataset, dev_dataset, test_dataset, word_set = get_datasets(argv)
+    train_dataset, dev_dataset, test_dataset, word_dict = get_datasets(argv)
     train_samples, dev_samples, test_samples = create_samples(
         argv, train_dataset, dev_dataset, test_dataset)
 
@@ -128,7 +129,7 @@ def main(argv):
     output_samples('train-sample', train_samples)
     output_samples('dev-sample', dev_samples)
     output_samples('test-sample', test_samples)
-    output_vocab(word_set)
+    output_vocab(word_dict)
 
 
 if __name__ == '__main__':

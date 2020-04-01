@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 
 import random
@@ -79,6 +80,7 @@ def train(model, train_loader, optimizer):
 
 def valid(model, valid_loader):
     elbo_t = []
+    model.eval()
     while True:
         batch = valid_loader.next_batch()
         if batch is None:
@@ -92,6 +94,7 @@ def valid(model, valid_loader):
 
 def decode(model, data_loader):
     results = []
+    model.eval()
     while True:
         batch = data_loader.next_batch()
         if batch is None:
@@ -200,9 +203,9 @@ def main(args):
             train_loader.epoch_init(params.batch_size, shuffle=False)
             results = decode(model, train_loader)
         else:
-            valid_loader.epoch_init(params.batch_size, shuffle=False)
+            test_loader.epoch_init(params.batch_size, shuffle=False)
             results = decode(
-                model, valid_loader
+                model, test_loader
             )  # [num_batches(8), 4, batch_size(16), max_dialog_len(10), n_state(10)]
         with open(os.path.join(log_dir, "result.pkl"), "wb") as fh:
             pkl.dump(results, fh)
@@ -234,7 +237,7 @@ if __name__ == "__main__":
                         help='whether save checkpoints')
     parser.add_argument(
         '--use_test_batch',
-        default=True,
+        default=False,
         type=bool,
         help='Whether use test dataset for structure interpretion')
 

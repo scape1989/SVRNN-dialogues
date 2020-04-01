@@ -8,10 +8,8 @@ import sys
 import torch
 from torch import nn
 import torch.nn.functional as F
-
 import torch_struct
 
-import sys
 sys.path.append("..")
 import params
 from .vae_cell import VAECell
@@ -106,13 +104,9 @@ class VRNN(nn.Module):
             -1, params.max_dialog_len,
             params.encoding_cell_size)  # (16, 10, 400)
 
-        if params.dropout > 0:
-            usr_sent_embedding = F.dropout(usr_sent_embedding,
-                                           p=params.dropout,
-                                           training=training)
-            sys_sent_embedding = F.dropout(sys_sent_embedding,
-                                           p=params.dropout,
-                                           training=training)
+        if params.dropout not in (None, 0):
+            usr_sent_embedding = self.dropout(usr_sent_embedding)
+            sys_sent_embedding = self.dropout(sys_sent_embedding)
 
         joint_embedding = torch.cat(
             [usr_sent_embedding, sys_sent_embedding],

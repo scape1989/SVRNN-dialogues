@@ -1,16 +1,48 @@
 """Global parameters.
 """
-word2vec_path = None  # The path to word2vec. Can be None.
-data_dir = "data/data.pkl"  # Raw data directory.
-log_dir = "log"  # Experiment results directory.
-api_dir = "data/cambridge_data/api_cambridge.txt"  # "data/api_simdial_weather.pkl"#"data/cambridge_data/api_cambridge.pkl"
-rev_vocab_dir = "data/cambridge_data/rev_vocab.pkl"  # "data/weather_rev_vocab.pkl"#"data/cambridge_data/rev_vocab.pkl"
-
-n_state = 10  # Number of states.with open(FLAGS.result_path, "w") as fh:
-temperature = 0.5  # temperature for gumbel softmax
 use_cuda = False
 seed = 233
 max_vocab_cnt = 10000
+word2vec_path = None  # The path to word2vec. Can be None.
+data_dir = "data/data.pkl"  # Raw data directory.
+log_dir = "log"  # Experiment results directory.
+use_glove = False
+glove_path = "/home/liang/Workspace/Corpus/glove.840B.300d.txt"
+
+# Weather and Restaurant Corpus
+api_dir = "data/cambridge_data/api_cambridge.txt"  # "data/api_simdial_weather.pkl"#"data/cambridge_data/api_cambridge.pkl"
+rev_vocab_dir = "data/cambridge_data/rev_vocab.pkl"  # "data/weather_rev_vocab.pkl"#"data/cambridge_data/rev_vocab.pkl"
+
+# Ubuntu Dialog Corpus
+data_pre = "/home/liang/Workspace/Corpus/#ubuntu-2004/"
+data_path = data_pre + "train-sample/train-*.json"
+eval_data_path = data_pre + "dev-sample/dev-*.json"
+test_data_path = data_pre + "test-sample/test-*.json"
+vocab_path = data_pre + "vocab"
+mode = "train"  # train, eval, decode
+
+# GSN model config
+branch_batch_size = 5
+sen_batch_size = 9
+emb_dim = 300
+sen_hidden_dim = 400
+branch_hidden_dim = 300
+max_enc_steps = 50
+max_dec_steps = 50
+min_dec_steps = 5
+dropout = 1.0
+n_gram = 3  # number of n_gram
+use_norm = True  # use norm
+norm_alpha = 0.25  # norm_alpha
+user_struct = True  # use the struct of user relation
+long_attn = False  # use the struct of all sent attn
+print_after = 10
+n_training_steps = 100
+eval_num = 100  # number of samples to evaluate
+
+# VAE-CRF config
+n_state = 10  # Number of states.with open(FLAGS.result_path, "w") as fh:
+temperature = 0.5  # temperature for gumbel softmax
 
 # Network general
 cell_type = "lstm"  # gru or lstm
