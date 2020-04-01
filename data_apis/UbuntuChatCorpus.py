@@ -22,83 +22,83 @@ class Batch(object):
         # # max_dec_steps = config['graph_structure_net']['max_dec_steps']
         # sen_hidden_dim = config['graph_structure_net']['sen_hidden_dim']
 
-        self.enc_batch = torch.zeros(params.branch_batch_size,
-                                     params.sen_batch_size,
+        self.enc_batch = torch.zeros(params.batch_size,
+                                     params.max_dialog_len,
                                      params.max_enc_steps,
                                      dtype=torch.int64,
                                      device=device)
-        self.enc_lens = torch.zeros(params.branch_batch_size,
-                                    params.sen_batch_size,
+        self.enc_lens = torch.zeros(params.batch_size,
+                                    params.max_dialog_len,
                                     dtype=torch.int32,
                                     device=device)
         self.attn_mask = -1e10 * torch.ones(
-            params.branch_batch_size,
-            params.sen_batch_size,
+            params.batch_size,
+            params.max_dialog_len,
             params.max_enc_steps,
             dtype=torch.float32,
             device=device)  # attention mask batch
-        self.branch_lens_mask = torch.zeros(params.branch_batch_size,
-                                            params.sen_batch_size,
-                                            params.sen_batch_size,
+        self.branch_lens_mask = torch.zeros(params.batch_size,
+                                            params.max_dialog_len,
+                                            params.max_dialog_len,
                                             dtype=torch.float32,
                                             device=device)
 
-        self.dec_batch = torch.zeros(params.branch_batch_size,
+        self.dec_batch = torch.zeros(params.batch_size,
                                      params.max_dec_steps,
                                      dtype=torch.int64,
                                      device=device)  # decoder input
         self.target_batch = torch.zeros(
-            params.branch_batch_size,
+            params.batch_size,
             params.max_dec_steps,
             dtype=torch.int32,
             device=device)  # target sequence index batch
-        self.padding_mask = torch.zeros(params.branch_batch_size,
+        self.padding_mask = torch.zeros(params.batch_size,
                                         params.max_dec_steps,
                                         dtype=torch.float32,
                                         device=device)  # target mask batch
         # self.tgt_batch_len = torch.zeros(config.branch_batch_size, dtype=torch.int32,device=device)      # target batch length
 
         # use state_matrix to look up sentence embedding state
-        self.state_matrix = torch.zeros(params.branch_batch_size,
-                                        params.sen_batch_size,
-                                        params.sen_batch_size,
+        self.state_matrix = torch.zeros(params.batch_size,
+                                        params.max_dialog_len,
+                                        params.max_dialog_len,
                                         dtype=torch.int64,
                                         device=device)
-        self.struct_conv = torch.zeros(params.branch_batch_size,
-                                       params.sen_batch_size,
-                                       params.sen_batch_size,
+        self.struct_conv = torch.zeros(params.batch_size,
+                                       params.max_dialog_len,
+                                       params.max_dialog_len,
                                        dtype=torch.int64,
                                        device=device)
-        self.struct_dist = torch.zeros(params.branch_batch_size,
-                                       params.sen_batch_size,
-                                       params.sen_batch_size,
-                                       dtype=torch.int64,
-                                       device=device)
-
-        self.relate_user = torch.zeros(params.branch_batch_size,
-                                       params.sen_batch_size,
-                                       params.sen_batch_size,
+        self.struct_dist = torch.zeros(params.batch_size,
+                                       params.max_dialog_len,
+                                       params.max_dialog_len,
                                        dtype=torch.int64,
                                        device=device)
 
-        self.mask_emb = torch.zeros(params.branch_batch_size,
-                                    params.sen_batch_size,
-                                    params.sen_batch_size,
-                                    params.sen_hidden_dim * 2,
+        self.relate_user = torch.zeros(params.batch_size,
+                                       params.max_dialog_len,
+                                       params.max_dialog_len,
+                                       dtype=torch.int64,
+                                       device=device)
+
+        self.mask_emb = torch.zeros(params.batch_size,
+                                    params.max_dialog_len,
+                                    params.max_dialog_len,
+                                    params.encoding_cell_size * 2,
                                     dtype=torch.float32,
                                     device=device)
-        self.mask_user = torch.zeros(params.branch_batch_size,
-                                     params.sen_batch_size,
-                                     params.sen_batch_size,
-                                     params.sen_hidden_dim * 2,
+        self.mask_user = torch.zeros(params.batch_size,
+                                     params.max_dialog_len,
+                                     params.max_dialog_len,
+                                     params.encoding_cell_size * 2,
                                      dtype=torch.float32,
                                      device=device)
-        mask_tool = torch.ones(params.sen_hidden_dim * 2,
+        mask_tool = torch.ones(params.encoding_cell_size * 2,
                                dtype=torch.float32,
                                device=device)
 
         # self.tgt_index = torch.zeros(config.branch_batch_size, config.sen_batch_size, dtype=torch.int32)
-        self.tgt_index = torch.zeros(params.branch_batch_size,
+        self.tgt_index = torch.zeros(params.batch_size,
                                      dtype=torch.int64,
                                      device=device)
 
@@ -120,7 +120,7 @@ class Batch(object):
                 if enc_len != 0:
                     # initialization of state_matrix
                     self.state_matrix[i][enc_idx][
-                        enc_idx] = params.sen_batch_size * i + enc_idx + 1
+                        enc_idx] = params.max_dialog_len * i + enc_idx + 1
                 for j in range(enc_len):
                     self.attn_mask[i][enc_idx][j] = 0
 
@@ -157,8 +157,8 @@ class Batch(object):
             self.context.append(ex.original_context)
             self.response.append(ex.original_response)
 
-        self.enc_lens = self.enc_lens.view(params.branch_batch_size *
-                                           params.sen_batch_size)
+        self.enc_lens = self.enc_lens.view(params.batch_size *
+                                           params.max_dialog_len)
         # self.enc_lens[:] = enc_lens_mid
 
 
@@ -175,7 +175,7 @@ class Batcher(object):
 
         self.batch_queue = queue.Queue(self.BATCH_QUEUE_MAX)
         self.input_queue = queue.Queue(self.BATCH_QUEUE_MAX *
-                                       params.branch_batch_size)
+                                       params.batch_size)
 
         # with open('/'.join(data_path.split('/')[:-1]) + '/' + 'pred_struct_dist.pkl', 'r') as f_pred:
         # self.struct_dist = pkl.load(f_pred)
@@ -208,7 +208,7 @@ class Batcher(object):
         """Return a Batch from the batch queue.
         """
         if self.mode == 'eval':
-            if self.eval_num > params.eval_num / params.branch_batch_size:
+            if self.eval_num > params.eval_num / params.batch_size:
                 self.eval_num = 0
                 return None
             else:
@@ -239,17 +239,17 @@ class Batcher(object):
         while True:
             if self.mode == 'decode':
                 ex = self.input_queue.get()
-                b = [ex for _ in range(params.branch_batch_size)]
+                b = [ex for _ in range(params.batch_size)]
                 self.batch_queue.put(
                     Batch(b, self.vocab, self.struct_dist, device=self.device))
             else:
                 inputs = []
-                for _ in range(params.branch_batch_size * self.cache_size):
+                for _ in range(params.batch_size * self.cache_size):
                     inputs.append(self.input_queue.get())
 
                 batches = []
-                for i in range(0, len(inputs), params.branch_batch_size):
-                    batches.append(inputs[i:i + params.branch_batch_size])
+                for i in range(0, len(inputs), params.batch_size):
+                    batches.append(inputs[i:i + params.batch_size])
                 if self.mode not in ['eval', 'decode']:
                     shuffle(batches)
                 for b in batches:
@@ -314,7 +314,7 @@ class RecordMaker(object):
 
         self.pad_sent = [self.pad_id for _ in range(params.max_enc_steps)
                          ]  # the sentence which only have 'pad_id'
-        while len(self.enc_input) < params.sen_batch_size:
+        while len(self.enc_input) < params.max_dialog_len:
             self.enc_len.append(0)
             self.enc_input.append(self.pad_sent)
 

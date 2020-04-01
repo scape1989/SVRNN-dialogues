@@ -21,26 +21,14 @@ test_data_path = data_pre + "test-sample/test-*.json"
 vocab_path = data_pre + "vocab"
 mode = "train"  # train, eval, decode
 
-# GSN model config
-branch_batch_size = 5
-sen_batch_size = 9
-emb_dim = 300
-sen_hidden_dim = 400
-branch_hidden_dim = 300
+# tree_vae config
 max_enc_steps = 50
 max_dec_steps = 50
-min_dec_steps = 5
-dropout = 1.0
-n_gram = 3  # number of n_gram
-use_norm = True  # use norm
-norm_alpha = 0.25  # norm_alpha
-user_struct = True  # use the struct of user relation
-long_attn = False  # use the struct of all sent attn
 print_after = 10
 n_training_steps = 100
 eval_num = 100  # number of samples to evaluate
 
-# VAE-CRF config
+# linear_vae config
 n_state = 10  # Number of states.with open(FLAGS.result_path, "w") as fh:
 temperature = 0.5  # temperature for gumbel softmax
 
@@ -50,9 +38,9 @@ encoding_cell_size = 400  # size of the rnn
 state_cell_size = n_state
 embed_size = 300  # word embedding size
 max_utt_len = 40  # max number of words in an utterance
-max_dialog_len = 10  # max number of turns in a dialog
+max_dialog_len = 9  # max number of turns in a dialog
 num_layer = 1  # number of context RNN layers
-use_sentence_attention = True
+use_struct_attention = True
 attention_type = "concat"  #dot, general, concat
 
 # Optimization parameters

@@ -94,12 +94,14 @@ def main(args):
     with open(params.api_dir, "rb") as fh:
         api2 = pkl.load(fh, encoding='latin1')
 
-    with open(os.path.join(params.log_dir, args.ckpt_dir, "result.pkl"),
-              "rb") as fh:
+    with open(
+            os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir,
+                         "result.pkl"), "rb") as fh:
         results = pkl.load(fh)
 
     state = torch.load(
-        os.path.join(params.log_dir, args.ckpt_dir, args.ckpt_name))
+        os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir,
+                     args.ckpt_name))
     # pp(state['state_dict'])
 
     converted_labels = []

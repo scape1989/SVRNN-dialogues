@@ -12,16 +12,15 @@ import torch_struct
 
 sys.path.append("..")
 import params
-from .vae_cell import VAECell
-#from models.attention_module import LinearChain
+from .linear_vae_cell import LinearVAECell
 
 
-class VRNN(nn.Module):
+class LinearVRNN(nn.Module):
     """
     VRNN with gumbel-softmax
     """
     def __init__(self):
-        super(VRNN, self).__init__()
+        super(LinearVRNN, self).__init__()
 
         self.embedding = nn.Embedding(params.max_vocab_cnt, params.embed_size)
 
@@ -30,19 +29,21 @@ class VRNN(nn.Module):
                                    params.encoding_cell_size,
                                    params.num_layer,
                                    batch_first=True)
-            self.vae_cell = VAECell(state_is_tuple=False)
+            self.vae_cell = LinearVAECell(state_is_tuple=False)
         else:
             self.sent_rnn = nn.LSTM(params.embed_size,
                                     params.encoding_cell_size,
                                     params.num_layer,
                                     batch_first=True)
-            self.vae_cell = VAECell(state_is_tuple=True)
-        #self.linear_chain = LinearChain(params.attention_type, params.encoding_cell_size * 2)
-
-        '''
-        Input Memory Net: Joint Embedding to Query Matrix [batch, length, params.encoding_cell_size * 2] ->[batch, length, 210 * 2]
-        '''
-        self.input_memory = nn.Linear(params.encoding_cell_size * 2, (200 + params.n_state) * 2)
+            self.vae_cell = LinearVAECell(state_is_tuple=True)
+        if params.dropout not in (None, 0):
+            self.dropout = nn.Dropout(params.dropout)
+        if params.use_struct_attention:
+            '''
+            Input Memory Net: Joint Embedding to Query Matrix [batch, length, params.encoding_cell_size * 2] -> [batch, length, 210 * 2]
+            '''
+            self.input_memory = nn.Linear(params.encoding_cell_size * 2,
+                                          (200 + params.n_state) * 2)
 
     def forward(self,
                 usr_input_sent,
@@ -112,10 +113,13 @@ class VRNN(nn.Module):
             [usr_sent_embedding, sys_sent_embedding],
             dim=2)  # (batch, dialog_len, encoding_cell_size * 2) (16, 10, 800)
 
-        #Pytorch-struct
-        #transition_marginals = self.linear_chain(joint_embedding)
-        input_query = self.input_memory(joint_embedding)
-        input_query = input_query.view(params.batch_size, -1, 2,  200 + params.n_state)
+        # Pytorch-struct
+        if params.use_struct_attention:
+            input_query = self.input_memory(joint_embedding)
+            input_query = input_query.view(params.batch_size, -1, 2,
+                                           200 + params.n_state)
+        else:
+            input_query = None
 
         ########################### state level ############################
         dec_input_embedding_usr = self.embedding(
@@ -181,9 +185,7 @@ class VRNN(nn.Module):
                 output_token,
                 prev_z_t=prev_z,
                 prev_embeddings=joint_embedding[:, :utt, :],
-                input_query = input_query,
-                #marginals = transition_marginals[:, :utt, :, :],
-                training=training)
+                input_query=input_query)
 
             shape = z_samples.size()
             _, ind = z_samples.max(dim=-1)
@@ -195,7 +197,7 @@ class VRNN(nn.Module):
             # stop gradient
             zts_onehot = (zts_onehot - z_samples).detach() + z_samples
             prev_z = zts_onehot
-            # check whether have converged to local minima
+            # TODO: check whether have converged to local minima
 
             elbo_ts.append(losses[0])
             rc_losses.append(losses[1])

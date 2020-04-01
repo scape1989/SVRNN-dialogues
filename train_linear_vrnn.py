@@ -12,7 +12,7 @@ from torch import nn, optim
 import numpy as np
 from beeprint import pp
 
-from models.vrnn import VRNN
+from models.linear_vrnn import LinearVRNN
 from data_apis.data_utils import SWDADataLoader
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
 from utils.loss import print_loss
@@ -118,13 +118,13 @@ def main(args):
     train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 
     if args.forward_only or args.resume:
-        log_dir = os.path.join(params.log_dir, args.ckpt_dir)
-        checkpoint_path = os.path.join(log_dir, args.ckpt_name)
+        log_dir = os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir)
+        checkpoint_path = os.path.join(log_dir, "linear_vrnn", args.ckpt_name)
     else:
-        log_dir = os.path.join(params.log_dir, "run" + str(int(time.time())))
+        log_dir = os.path.join(params.log_dir, "linear_vrnn", "run" + str(int(time.time())))
     os.makedirs(log_dir, exist_ok=True)
 
-    model = VRNN().to(device)
+    model = LinearVRNN().to(device)
     if params.op == "adam":
         optimizer = optim.Adam(model.parameters(),
                                lr=params.init_lr,
@@ -143,7 +143,7 @@ def main(args):
         model.embedding.from_pretrained(torch.from_numpy(word2vec),
                                         freeze=False)
 
-    # Write config to a file for logging
+    # write config to a file for logging
     if not args.forward_only:
         with open(os.path.join(log_dir, "run.log"), "w") as f:
             f.write(pp(params, output=False))
@@ -169,10 +169,13 @@ def main(args):
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
             train(model, train_loader, optimizer)
+
             print("Best valid loss so far %f" % best_dev_loss)
             valid_loader.epoch_init(params.batch_size, shuffle=False)
             valid_loss = valid(model, valid_loader)
             if valid_loss < best_dev_loss:
+                print("Get a smaller valid loss, update the best valid loss")
+                best_dev_loss = valid_loss
                 # increase patience when valid_loss is small enough
                 if valid_loss <= dev_loss_threshold * params.improve_threshold:
                     patience = max(patience, epoch * params.patient_increase)
@@ -180,7 +183,7 @@ def main(args):
 
                 # still save the best train model
                 if args.save_model:
-                    print("Update the best valid loss and save the model.")
+                    print("Saving the model.")
                     state = {
                         'epoch': epoch,
                         'state_dict': model.state_dict(),
@@ -189,7 +192,7 @@ def main(args):
                     torch.save(
                         state,
                         os.path.join(log_dir, "vrnn_" + str(epoch) + ".pt"))
-                    best_dev_loss = valid_loss
+                    
 
             if params.early_stop and patience <= epoch:
                 print("Early stop due to run out of patience!!")

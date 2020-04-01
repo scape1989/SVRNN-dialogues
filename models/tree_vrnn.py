@@ -6,33 +6,46 @@ import sys
 import torch
 from torch import nn
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+import matplotlib
 
 sys.path.append("..")
 import params
 from .tree_vae_cell import TreeVAECell
 from utils.loss import BPR_BOW_loss_single
 
+import torch_struct
+
+
+def show_deps(tree):
+    plt.imshow(tree.detach())
+
 
 class TreeVRNN(nn.Module):
     def __init__(self):
         super(TreeVRNN, self).__init__()
 
-        self.embedding = nn.Embedding(params.max_vocab_cnt, params.emb_dim)
+        self.embedding = nn.Embedding(params.max_vocab_cnt, params.embed_size)
 
         if params.cell_type == "gru":
             self.sent_rnn = nn.GRU(params.embed_size,
-                                   params.sen_hidden_dim,
+                                   params.encoding_cell_size,
                                    params.num_layer,
                                    batch_first=True)
             self.vae_cell = TreeVAECell(state_is_tuple=False)
         else:
             self.sent_rnn = nn.LSTM(params.embed_size,
-                                    params.sen_hidden_dim,
+                                    params.encoding_cell_size,
                                     params.num_layer,
                                     batch_first=True)
             self.vae_cell = TreeVAECell(state_is_tuple=True)
         if params.dropout not in (None, 0):
             self.dropout = nn.Dropout(params.dropout)
+        self.W_1 = nn.Parameter(torch.rand(200, params.encoding_cell_size))
+        self.W_2 = nn.Parameter(torch.rand(200, params.encoding_cell_size))
+        self.b = nn.Parameter(torch.zeros(200))
+        self.s = nn.Parameter(torch.rand(200))
+        self.root = nn.Parameter(torch.zeros(params.encoding_cell_size))
 
     def forward(self,
                 enc_batch,
@@ -54,9 +67,8 @@ class TreeVRNN(nn.Module):
             sent_embeddings, (_, _) = self.sent_rnn(
                 input_embedding)  # (45, 50, 400)
 
-        sent_embedding = torch.zeros(
-            params.branch_batch_size * params.sen_batch_size,
-            params.sen_hidden_dim)
+        sent_embedding = torch.zeros(params.batch_size * params.max_dialog_len,
+                                     params.encoding_cell_size)
 
         if params.use_cuda and torch.cuda.is_available():
             sent_embedding = sent_embedding.cuda()
@@ -66,7 +78,8 @@ class TreeVRNN(nn.Module):
                 sent_embedding[i] = sent_embeddings[i, enc_lens[i] - 1, :]
 
         sent_embedding = sent_embedding.view(
-            -1, params.sen_batch_size, params.sen_hidden_dim)  # (5, 9, 400)
+            -1, params.max_dialog_len,
+            params.encoding_cell_size)  # (5, 9, 400)
 
         if params.dropout not in (None, 0):
             sent_embedding = self.dropout(sent_embedding)
@@ -74,10 +87,9 @@ class TreeVRNN(nn.Module):
         ########################### state level ############################
         dec_input_embedding = self.embedding(dec_batch)  # (5, 50, 300)
 
-        prev_z = torch.ones(params.branch_batch_size, params.n_state)
+        prev_z = torch.ones(params.batch_size, params.n_state)
 
         z_samples_list = []
-        z_samples_context_list = []
         h_list = []
         z_onehot_list = []
         p_z_list = []
@@ -86,29 +98,23 @@ class TreeVRNN(nn.Module):
         log_q_z_list = []
 
         if params.cell_type == "gru":
-            state = torch.zeros(params.branch_batch_size,
-                                params.state_cell_size)
+            state = torch.zeros(params.batch_size, params.state_cell_size)
             if params.use_cuda and torch.cuda.is_available():
                 state = state.cuda()
         else:
-            h = c = torch.zeros(params.branch_batch_size,
-                                params.state_cell_size)
+            h = c = torch.zeros(params.batch_size, params.state_cell_size)
             if params.use_cuda and torch.cuda.is_available():
                 h = h.cuda()
                 c = c.cuda()
             state = (h, c)
 
-        for utt in range(params.sen_batch_size):
+        for utt in range(params.max_dialog_len):
             inputs = sent_embedding[:, utt, :]
 
-            z_samples, z_samples_context, state, p_z, q_z, log_p_z, log_q_z = self.vae_cell(
-                inputs,
-                state,
-                prev_z_t=prev_z,
-                prev_embeddings=sent_embedding[:, :utt, :])
+            z_samples, state, p_z, q_z, log_p_z, log_q_z = self.vae_cell(
+                inputs, state, prev_z_t=prev_z)
             # save the previous state
             z_samples_list.append(z_samples)
-            z_samples_context_list.append(z_samples_context)
             if params.cell_type == "gru":
                 h_list.append(state)
             else:
@@ -133,37 +139,84 @@ class TreeVRNN(nn.Module):
 
         # decode
         # pick tgt_idx from encoder
-        h_prev = torch.zeros(params.branch_batch_size, params.n_state)
-        z_samples_dec = torch.zeros(params.branch_batch_size, params.n_state)
-        z_samples_context_dec = torch.zeros(params.branch_batch_size,
-                                            params.n_state)
-        p_z_dec = torch.zeros(params.branch_batch_size, params.n_state)
-        q_z_dec = torch.zeros(params.branch_batch_size, params.n_state)
-        log_p_z_dec = torch.zeros(params.branch_batch_size, params.n_state)
-        log_q_z_dec = torch.zeros(params.branch_batch_size, params.n_state)
+        h_prev = torch.zeros(params.batch_size, params.n_state)
+        z_samples_dec = torch.zeros(params.batch_size, params.n_state)
+        p_z_dec = torch.zeros(params.batch_size, params.n_state)
+        q_z_dec = torch.zeros(params.batch_size, params.n_state)
+        log_p_z_dec = torch.zeros(params.batch_size, params.n_state)
+        log_q_z_dec = torch.zeros(params.batch_size, params.n_state)
         if params.use_cuda and torch.cuda.is_available():
             h_prev = h_prev.cuda()
             z_samples_dec = z_samples_dec.cuda()
-            z_samples_context_dec = z_samples_context_dec.cuda()
             p_z_dec = p_z_dec.cuda()
             q_z_dec = q_z_dec.cuda()
             log_p_z_dec = log_p_z_dec.cuda()
             log_q_z_dec = log_q_z_dec.cuda()
-        for i in range(params.branch_batch_size):
+        for i in range(params.batch_size):
             h_prev[i, :] = h_list[tgt_index[i]][i, :]
             z_samples_dec[i, :] = z_samples_list[tgt_index[i]][i, :]
-            z_samples_context_dec[i, :] = z_samples_context_list[tgt_index[i]][
-                i, :]
             p_z_dec[i, :] = p_z_list[tgt_index[i]][i, :]
             q_z_dec[i, :] = q_z_list[tgt_index[i]][i, :]
             log_p_z_dec[i, :] = p_z_list[tgt_index[i]][i, :]
             log_q_z_dec[i, :] = log_q_z_list[tgt_index[i]][i, :]
 
+        # Calculate non-projective dependency tree structured attention
+        log_potentials = torch.zeros(params.batch_size, params.max_dialog_len,
+                                     params.max_dialog_len)
+        for b in range(params.batch_size):
+            for i in range(params.max_dialog_len):
+                for j in range(params.max_dialog_len):
+                    if i == j:
+                        if i > tgt_index[b]:
+                            log_potentials[b, i, j] = 0
+                        else:
+                            log_potentials[b, i, j] = torch.tanh(
+                                torch.dot(
+                                    self.s,
+                                    torch.tanh(
+                                        self.W_1.matmul(self.root) +
+                                        self.W_2.matmul(sent_embedding[b,
+                                                                       i, :]) +
+                                        self.b)))
+                    if i > j:
+                        log_potentials[b, i, j] = 0
+                    else:
+                        if j > tgt_index[b]:
+                            log_potentials[b, i, j] = 0
+                        else:
+                            log_potentials[b, i, j] = torch.tanh(
+                                torch.dot(
+                                    self.s,
+                                    torch.tanh(
+                                        self.W_1.matmul(sent_embedding[b,
+                                                                       i, :]) +
+                                        self.W_2.matmul(sent_embedding[b,
+                                                                       j, :]) +
+                                        self.b)))
+        dist = torch_struct.NonProjectiveDependencyCRF(log_potentials)
+        # show_deps(dist.marginals[0])
+        # plt.show()
+
+        context_embedding = torch.zeros_like(sent_embedding)
+        if params.use_cuda and torch.cuda.is_available():
+            context_embedding = context_embedding.cuda()
+
+        for j in range(params.max_dialog_len):
+            # print(dist.marginals[b, :, j].shape)
+            # print(sent_embedding[b, :, :].shape)
+            context_embedding[:,
+                              j, :] = dist.marginals[:, :, j].unsqueeze(1).bmm(
+                                  sent_embedding[:, :, :]).squeeze(1)
+
+        if params.use_struct_attention:
+            sent_embedding = torch.cat((sent_embedding, context_embedding),
+                                       dim=2)
         dec_outs, bow_logits = self.vae_cell.decode(
             z_samples_dec,
             h_prev,
             dec_input_embedding,
-            z_samples_context=z_samples_context_dec)
+            prev_embeddings=sent_embedding,
+            tgt_index=tgt_index)
         elbo_t, rc_loss, kl_loss, bow_loss = BPR_BOW_loss_single(
             target_batch,
             dec_outs,

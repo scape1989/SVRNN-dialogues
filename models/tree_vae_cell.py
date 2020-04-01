@@ -19,17 +19,15 @@ class TreeVAECell(nn.Module):
         # temperature of gumbel_softmax
         self.tau = nn.Parameter(torch.tensor([5.0]))
 
-        self.enc_mlp = MLP(params.sen_hidden_dim + params.state_cell_size,
+        self.enc_mlp = MLP(params.encoding_cell_size + params.state_cell_size,
                            [400, 200],
                            dropout_rate=params.dropout)
         self.enc_fc = nn.Linear(200, params.n_state)
         self.dec_mlp = MLP(params.n_state, [200, 200],
                            dropout_rate=params.dropout)
 
-        self.dec_rnn = nn.LSTM(params.embed_size,
-                               200 + params.n_state,
-                               1,
-                               batch_first=True)
+        self.dec_rnn = nn.LSTMCell(params.embed_size, 200 + params.n_state)
+
         self.dec_fc = nn.Linear(200 + params.n_state, params.max_vocab_cnt)
 
         self.bow_fc = nn.Linear(params.state_cell_size + 200, 400)
@@ -44,17 +42,25 @@ class TreeVAECell(nn.Module):
         self.transit_fc = nn.Linear(100, params.n_state)
 
         if params.cell_type == "gru":
-            self.state_rnn = nn.GRUCell(params.sen_hidden_dim + 200,
+            self.state_rnn = nn.GRUCell(params.encoding_cell_size + 200,
                                         params.state_cell_size)
         else:
-            self.state_rnn = nn.LSTMCell(params.sen_hidden_dim + 200,
+            self.state_rnn = nn.LSTMCell(params.encoding_cell_size + 200,
                                          params.state_cell_size)
         if params.dropout not in (None, 0):
             self.dropout = nn.Dropout(params.dropout)
-
-        # attention
-        if params.use_sentence_attention:
-            self.attn = Attn(params.attention_type, params.sen_hidden_dim)
+        if params.use_struct_attention:
+            self.attn = Attn(params.attention_type,
+                             params.state_cell_size + 200,
+                             params.encoding_cell_size * 2)
+            self.attn_fc = nn.Linear(params.encoding_cell_size * 2,
+                                     params.state_cell_size + 200)
+        else:
+            self.attn = Attn(params.attention_type,
+                             params.state_cell_size + 200,
+                             params.encoding_cell_size)
+            self.attn_fc = nn.Linear(params.encoding_cell_size,
+                                     params.state_cell_size + 200)
 
     def encode(self, inputs, h_prev):
         enc_inputs = torch.cat([h_prev, inputs],
@@ -66,50 +72,27 @@ class TreeVAECell(nn.Module):
 
         return logits_z, q_z, log_q_z
 
-    def context_encode(self, inputs, h_prev, prev_embeddings):
-        '''
-        :param inputs: sentence encoding for current dialogue index(utt) [batch, encoding_cell_size * 2]
-        :param h_prev: previous h state from LSTM [batch, state_cell_size]
-        :param prev_embeddings: previous sentence embeddings [batch, current_utt_index - 1, encoding_cell_size * 2]
-        :return: hidden_state from vae [batch x n_state]
-        '''
-        attn_weights = self.attn(inputs, prev_embeddings)
-        context = attn_weights.bmm(prev_embeddings).squeeze(1)
-        enc_inputs = torch.cat([h_prev, context],
-                               1)  # [batch, sen_hidden_dim + state_cell_size]
-
-        net1 = self.enc_mlp(enc_inputs)
-        logits_z = self.enc_fc(net1)
-        q_z = F.softmax(logits_z, dim=1)
-        log_q_z = F.log_softmax(logits_z, dim=1)
-
-        return logits_z, q_z, log_q_z
-
     def decode(self,
                z_samples,
                h_prev,
                dec_input_embedding,
-               z_samples_context=None):
+               prev_embeddings=None,
+               tgt_index=None):
         net2 = self.dec_mlp(z_samples)  # [batch, 200]
         # decoder for user utterance
-        dec_input = torch.unsqueeze(
-            torch.cat([h_prev, net2], dim=1),
-            dim=0)  # [num_layer(1), batch, state_cell_size + 200]
+        dec_input = torch.cat([h_prev, net2],
+                              dim=1)  # [batch,  state_cell_size+ 200]
 
-        # decoder from context
-        if params.use_sentence_attention:
-            net2_context = self.dec_mlp(z_samples_context)  # [batch, 200]
-            dec_input_context = torch.unsqueeze(
-                torch.cat([h_prev, net2_context], dim=1),
-                dim=0)  # [num_layer(1), batch, state_cell_size + 200]
-        else:
-            dec_input_context = dec_input
-
-        dec_outs, final_state = self.dec_rnn(dec_input_embedding,
-                                             (dec_input, dec_input_context))
-
+        # use standard attention for decoding
+        h = dec_input
+        dec_outs = []
+        for i in range(dec_input_embedding.shape[1]):
+            context = self.attn(h, prev_embeddings, tgt_index)
+            h, c = self.dec_rnn(dec_input_embedding[:, i, :],
+                                (h, self.attn_fc(context)))
+            dec_outs.append(h)
         if params.dropout not in (None, 0):
-            dec_outs = self.dropout(dec_outs)
+            dec_outs = self.dropout(torch.stack(dec_outs))
         dec_outs = self.dec_fc(dec_outs)
 
         # for computing BOW loss
@@ -123,7 +106,7 @@ class TreeVAECell(nn.Module):
 
         return dec_outs, bow_logits
 
-    def forward(self, inputs, state, prev_z_t=None, prev_embeddings=None):
+    def forward(self, inputs, state, prev_z_t=None):
         if params.with_direct_transition:
             assert prev_z_t is not None
         if self._state_is_tuple:
@@ -136,17 +119,6 @@ class TreeVAECell(nn.Module):
         # sample
         z_samples, logits_z_samples = gumbel_softmax(
             logits_z, self.tau, hard=False)  # [batch, n_state]
-
-        #encode from context
-        if params.use_sentence_attention:
-            logits_z_context, q_z_context, log_q_z_context = self.context_encode(
-                inputs, h_prev, prev_embeddings)
-
-            #sample from context
-            z_samples_context, logits_z_samples_context = gumbel_softmax(
-                logits_z_context, self.tau, hard=False)  # [batch, n_state]
-        else:
-            z_samples_context = None
 
         net2 = self.dec_mlp(z_samples)  # [batch, 200]
 
@@ -166,4 +138,4 @@ class TreeVAECell(nn.Module):
                                 dim=1)  # [batch, sen_hidden_dim + 200]
         next_state = self.state_rnn(recur_input, state)
 
-        return z_samples, z_samples_context, next_state, p_z, q_z, log_p_z, log_q_z
+        return z_samples, next_state, p_z, q_z, log_p_z, log_q_z
