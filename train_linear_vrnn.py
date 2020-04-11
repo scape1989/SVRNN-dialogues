@@ -111,9 +111,12 @@ def main(args):
     random.seed(seed)
     np.random.seed(seed + 1)
     torch.manual_seed(seed + 2)
-
+    
+    print("Available gpus: %d" % torch.cuda.device_count())
     use_cuda = params.use_cuda and torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
+    device = torch.device("cuda:7" if use_cuda else "cpu")
+    torch.cuda.set_device(device)
+    print("Current device: %d" % torch.cuda.current_device())
 
     train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 

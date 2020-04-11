@@ -1,6 +1,6 @@
 """Global parameters.
 """
-use_cuda = False
+use_cuda = True
 seed = 233
 max_vocab_cnt = 10000
 word2vec_path = None  # The path to word2vec. Can be None.

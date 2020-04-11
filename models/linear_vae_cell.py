@@ -132,6 +132,8 @@ class LinearVAECell(nn.Module):
             all_outs_1 = torch.zeros(
                 batch_size, sentence_length, 210
             )  # 200 + params.n_state # 200 + params.n_state, record the output
+            if params.use_cuda and torch.cuda.is_available():
+                all_outs_1 = all_outs_1.cuda()
             hidden_input_1 = dec_input_1  # LSTM : H
             cell_input_1 = dec_input_1  # LSTM : C
             utt_index = prev_embeddings.size(1)
@@ -151,6 +153,8 @@ class LinearVAECell(nn.Module):
             for t in range(sentence_length):
                 context = torch.zeros(params.batch_size,
                                       params.encoding_cell_size * 2)
+                if params.use_cuda and torch.cuda.is_available():
+                    context = context.cuda()
                 if utt_index != None and utt_index >= 1:
                     # TODO: this is redundant?
                     # X_prev = input_query[:, :
@@ -185,14 +189,16 @@ class LinearVAECell(nn.Module):
                     log_potentials = X_prev_times_X_cur + X_prev_times_Q + X_cur_times_Q
 
                     # Linear Chain
-                    dist = torch_struct.LinearChainCRF(log_potentials)
-
+                    # TODO: @torch-struct
+                    lengths = torch.tensor([utt_index + 1] * params.batch_size)
+                    if params.use_cuda and torch.cuda.is_available():
+                        lengths = lengths.cuda()
+                    dist = torch_struct.LinearChainCRF(log_potentials, lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
                     context = marginals_one_prob.bmm(prev_embeddings).squeeze(
                         1)
-                    context = context / utt_index  # normalize attention
-
+                    context = context / utt_index  # normalize attention)
                 dec_input_new = torch.cat(
                     [dec_input_embedding[0][:, t, :], context],
                     dim=1).unsqueeze(1)
@@ -200,9 +206,8 @@ class LinearVAECell(nn.Module):
                 ##RNN one word at one time
                 temp_out_1, (hidden_input_1, cell_input_1) = self.dec_rnn_1(
                     dec_input_new, (hidden_input_1, cell_input_1))
-
                 all_outs_1[:, t, :] = temp_out_1.squeeze(1)
-
+            
             dec_outs_1 = self.dropout(all_outs_1)
             dec_outs_1 = self.dec_fc_1(dec_outs_1)
 
@@ -218,6 +223,8 @@ class LinearVAECell(nn.Module):
             all_outs_2 = torch.zeros(
                 batch_size, sentence_length,
                 210)  # 200 + params.n_state, record the output
+            if params.use_cuda and torch.cuda.is_available():
+                all_outs_2 = all_outs_2.cuda()
 
             hidden_input_2 = dec_input_1  # LSTM: H
             cell_input_2 = cell_input_1  #LSTM: C
@@ -225,6 +232,8 @@ class LinearVAECell(nn.Module):
             for t in range(sentence_length):
                 context = torch.zeros(params.batch_size,
                                       params.encoding_cell_size * 2)
+                if params.use_cuda and torch.cuda.is_available():
+                    context = context.cuda()
                 if utt_index != None and utt_index >= 1:
                     Q = torch.transpose(hidden_input_2, 0,
                                         1).unsqueeze(2).repeat(
@@ -243,7 +252,10 @@ class LinearVAECell(nn.Module):
                     log_potentials = X_prev_times_X_cur + X_prev_times_Q + X_cur_times_Q
 
                     # Linear Chain
-                    dist = torch_struct.LinearChainCRF(log_potentials)
+                    lengths = torch.tensor([utt_index + 1] * params.batch_size)
+                    if params.use_cuda and torch.cuda.is_available():
+                        lengths = lengths.cuda()
+                    dist = torch_struct.LinearChainCRF(log_potentials, lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
                     context = marginals_one_prob.bmm(prev_embeddings).squeeze(
