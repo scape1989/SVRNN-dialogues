@@ -168,3 +168,4 @@ def print_loss(prefix, loss_names, losses, postfix):
     values.append(postfix)
 
     print(template % tuple(values))
+    sys.stdout.flush()

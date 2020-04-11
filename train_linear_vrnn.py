@@ -77,7 +77,6 @@ def train(model, train_loader, optimizer):
     epoch_time = time.time() - start_time
     print_loss("Epoch Done", loss_names, [elbo_t, rc_loss, kl_loss, bow_loss],
                "step time %.4f" % (epoch_time / train_loader.num_batch))
-    sys.stdout.flush()
 
 
 def valid(model, valid_loader):
@@ -91,7 +90,6 @@ def valid(model, valid_loader):
         elbo_t.append(loss[0].data)
 
     print_loss("Valid", ["elbo_t"], [elbo_t], "")
-    sys.stdout.flush()
     return torch.mean(torch.stack(elbo_t))
 
 
