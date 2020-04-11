@@ -5,6 +5,7 @@ import random
 import os
 import time
 import argparse
+import sys
 
 import pickle as pkl
 import torch
@@ -76,6 +77,7 @@ def train(model, train_loader, optimizer):
     epoch_time = time.time() - start_time
     print_loss("Epoch Done", loss_names, [elbo_t, rc_loss, kl_loss, bow_loss],
                "step time %.4f" % (epoch_time / train_loader.num_batch))
+    sys.stdout.flush()
 
 
 def valid(model, valid_loader):
@@ -89,6 +91,7 @@ def valid(model, valid_loader):
         elbo_t.append(loss[0].data)
 
     print_loss("Valid", ["elbo_t"], [elbo_t], "")
+    sys.stdout.flush()
     return torch.mean(torch.stack(elbo_t))
 
 
@@ -113,11 +116,16 @@ def main(args):
     torch.manual_seed(seed + 2)
     
     print("Available gpus: %d" % torch.cuda.device_count())
+    sys.stdout.flush()
     use_cuda = params.use_cuda and torch.cuda.is_available()
-    device = torch.device("cuda:7" if use_cuda else "cpu")
-    torch.cuda.set_device(device)
-    print("Current device: %d" % torch.cuda.current_device())
-
+    if use_cuda:
+        device = torch.device("cuda:7")
+        torch.cuda.set_device(device)
+        print("Current gpu: %d" % torch.cuda.current_device())
+        sys.stdout.flush()
+    else:
+        device = torch.device("cpu")
+    
     train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 
     if args.forward_only or args.resume:
@@ -143,6 +151,7 @@ def main(args):
 
     if word2vec is not None and not args.forward_only:
         print("Load word2vec")
+        sys.stdout.flush()
         model.embedding.from_pretrained(torch.from_numpy(word2vec),
                                         freeze=False)
 
@@ -154,6 +163,7 @@ def main(args):
     last_epoch = 0
     if args.resume:
         print("Resuming training from %s" % checkpoint_path)
+        sys.stdout.flush()
         state = torch.load(checkpoint_path)
         model.load_state_dict(state['state_dict'])
         optimizer.load_state_dict(state['optimizer'])
@@ -166,18 +176,22 @@ def main(args):
     if not args.forward_only:
         for epoch in range(last_epoch + 1, params.max_epoch + 1):
             print(">> Epoch %d" % (epoch))
+            sys.stdout.flush()
             for param_group in optimizer.param_groups:
                 print("Learning rate %f" % param_group['lr'])
+                sys.stdout.flush()
 
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
             train(model, train_loader, optimizer)
 
             print("Best valid loss so far %f" % best_dev_loss)
+            sys.stdout.flush()
             valid_loader.epoch_init(params.batch_size, shuffle=False)
             valid_loss = valid(model, valid_loader)
             if valid_loss < best_dev_loss:
                 print("Get a smaller valid loss, update the best valid loss")
+                sys.stdout.flush()
                 best_dev_loss = valid_loss
                 # increase patience when valid_loss is small enough
                 if valid_loss <= dev_loss_threshold * params.improve_threshold:
@@ -187,6 +201,7 @@ def main(args):
                 # still save the best train model
                 if args.save_model:
                     print("Saving the model.")
+                    sys.stdout.flush()
                     state = {
                         'epoch': epoch,
                         'state_dict': model.state_dict(),
@@ -199,11 +214,13 @@ def main(args):
 
             if params.early_stop and patience <= epoch:
                 print("Early stop due to run out of patience!!")
+                sys.stdout.flush()
                 break
     # Inference only
     else:
         state = torch.load(checkpoint_path)
         print("Load model from %s" % checkpoint_path)
+        sys.stdout.flush()
         model.load_state_dict(state['state_dict'])
         if not args.use_test_batch:
             train_loader.epoch_init(params.batch_size, shuffle=False)
