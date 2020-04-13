@@ -5,6 +5,7 @@ import os
 import time
 import argparse
 import sys
+import inspect
 
 import pickle as pkl
 import torch
@@ -161,6 +162,7 @@ def main(args):
     args = parser.parse_args(args)
     print(args)
     pp(params)
+
     # set random seeds
     seed = params.seed
     random.seed(seed)
@@ -175,7 +177,7 @@ def main(args):
         ), "params.gpu_idx must be one of the available GPUs"
         device = torch.device("cuda:" + str(params.gpu_idx))
         torch.cuda.set_device(device)
-        print("Current GPU: %d" % torch.cuda.current_device())
+        print("Using GPU: %d" % torch.cuda.current_device())
         sys.stdout.flush()
     else:
         device = torch.device("cpu")
@@ -189,8 +191,9 @@ def main(args):
     else:
         ckpt_dir = "run" + str(int(time.time()))
         log_dir = os.path.join(params.log_dir, "linear_vrnn", ckpt_dir)
-        writer = SummaryWriter(log_dir=log_dir)
     os.makedirs(log_dir, exist_ok=True)
+    print("Writing logs to %s" % log_dir)
+    writer = SummaryWriter(log_dir=log_dir)
 
     model = LinearVRNN().to(device)
     if params.op == "adam":
@@ -212,10 +215,22 @@ def main(args):
         model.embedding.from_pretrained(torch.from_numpy(word2vec),
                                         freeze=False)
 
-    # write config to a file for logging
-    if not args.forward_only:
-        with open(os.path.join(log_dir, "run.log"), "w") as f:
-            f.write(pp(params, output=False))
+    # # write config to a file for logging
+    # if not args.forward_only:
+    #     with open(os.path.join(log_dir, "run.log"), "w") as f:
+    #         f.write(pp(params, output=False))
+    variables = dir(params)
+    param_vars = []
+    for var in variables:
+        if not var.startswith("_"):
+            param_vars.append(var)
+    params_dict = {
+        var: getattr(params, var)
+        for var in param_vars if getattr(params, var) != None
+    }
+    writer.add_hparams(params_dict, {"NA": 0})
+
+    writer.add_text('Hyperparameters', pp(params, output=False))
 
     last_epoch = 0
     if args.resume:
@@ -243,7 +258,7 @@ def main(args):
                 train_loader.epoch_init(params.batch_size, shuffle=True)
             train(model, train_loader, optimizer, writer)
 
-            print("Best valid loss so far %f" % best_dev_loss)
+            print("Best valid loss before this validation: %f" % best_dev_loss)
             sys.stdout.flush()
             valid_loader.epoch_init(params.batch_size, shuffle=False)
             valid_loss = valid(model, valid_loader, writer)
@@ -258,7 +273,7 @@ def main(args):
 
                 # still save the best train model
                 if args.save_model:
-                    print("Saving the model.")
+                    print("Saving the model")
                     sys.stdout.flush()
                     state = {
                         'epoch': epoch,
@@ -271,7 +286,7 @@ def main(args):
                 print("Early stop due to run out of patience!!")
                 sys.stdout.flush()
                 break
-        print("Total training time: %.2f" % (time.time() - start) / 60)
+        print("Total training time: %.2f" % float(time.time() - start) / 60.00)
         return ckpt_dir, ckpt_name
     # Inference only
     else:
