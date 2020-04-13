@@ -43,7 +43,7 @@ def get_dataset(device):
     return train_loader, valid_loader, test_loader, np.array(api.word2vec)
 
 
-def train(model, train_loader, optimizer, writer):
+def train(model, train_loader, optimizer, writer, epoch):
     elbo_t = []
     rc_loss = []
     kl_loss = []
@@ -71,23 +71,22 @@ def train(model, train_loader, optimizer, writer):
                 'rc_loss': loss[1].data,
                 'kl_loss': loss[2].data,
                 'bow_loss': loss[3].data
-            }, local_t)
+            }, epoch * train_loader.num_batch + local_t)
         loss[0].backward(
         )  # loss[0] = elbo_t = rc_loss + weight_kl * kl_loss + weight_bow * bow_loss
         optimizer.step()
 
-        if local_t % (train_loader.num_batch // 10) == 0:
-            print_loss("%.2f" %
-                       (train_loader.ptr / float(train_loader.num_batch)),
-                       loss_names, [elbo_t, rc_loss, kl_loss, bow_loss],
-                       postfix='')
+        # if local_t % (train_loader.num_batch // 20) == 0:
+        print_loss("%.2f" % (train_loader.ptr / float(train_loader.num_batch)),
+                   loss_names, [elbo_t, rc_loss, kl_loss, bow_loss],
+                   postfix='')
     # finish epoch!
     epoch_time = time.time() - start_time
     print_loss("Epoch Done", loss_names, [elbo_t, rc_loss, kl_loss, bow_loss],
                "step time %.4f" % (epoch_time / train_loader.num_batch))
 
 
-def valid(model, valid_loader, writer):
+def valid(model, valid_loader, writer, epoch):
     elbo_t = []
     model.eval()
     local_t = 0
@@ -98,7 +97,8 @@ def valid(model, valid_loader, writer):
         local_t += 1
         loss = model(*batch)
         elbo_t.append(loss[0].data)
-        writer.add_scalar('Loss/train/elbo_t', loss[0].data, local_t)
+        writer.add_scalar('Loss/valid/elbo_t', loss[0].data,
+                          epoch * valid_loader.num_batch + local_t)
 
     print_loss("Valid", ["elbo_t"], [elbo_t], "")
     return torch.mean(torch.stack(elbo_t))
@@ -216,21 +216,21 @@ def main(args):
                                         freeze=False)
 
     # # write config to a file for logging
-    # if not args.forward_only:
-    #     with open(os.path.join(log_dir, "run.log"), "w") as f:
-    #         f.write(pp(params, output=False))
-    variables = dir(params)
-    param_vars = []
-    for var in variables:
-        if not var.startswith("_"):
-            param_vars.append(var)
-    params_dict = {
-        var: getattr(params, var)
-        for var in param_vars if getattr(params, var) != None
-    }
-    writer.add_hparams(params_dict, {"NA": 0})
+    if not args.forward_only:
+        #     with open(os.path.join(log_dir, "run.log"), "w") as f:
+        #         f.write(pp(params, output=False))
+        variables = dir(params)
+        param_vars = []
+        for var in variables:
+            if not var.startswith("_"):
+                param_vars.append(var)
+        params_dict = {
+            var: getattr(params, var)
+            for var in param_vars if getattr(params, var) != None
+        }
+        writer.add_hparams(params_dict, {"NA": 0})
 
-    writer.add_text('Hyperparameters', pp(params, output=False))
+        writer.add_text('Hyperparameters', pp(params, output=False))
 
     last_epoch = 0
     if args.resume:
@@ -247,7 +247,7 @@ def main(args):
     best_dev_loss = np.inf
     if not args.forward_only:
         start = time.time()
-        for epoch in range(last_epoch + 1, params.max_epoch + 1):
+        for epoch in range(last_epoch, params.max_epoch):
             print(">> Epoch %d" % (epoch))
             sys.stdout.flush()
             for param_group in optimizer.param_groups:
@@ -256,12 +256,12 @@ def main(args):
 
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
-            train(model, train_loader, optimizer, writer)
+            train(model, train_loader, optimizer, writer, epoch)
 
             print("Best valid loss before this validation: %f" % best_dev_loss)
             sys.stdout.flush()
             valid_loader.epoch_init(params.batch_size, shuffle=False)
-            valid_loss = valid(model, valid_loader, writer)
+            valid_loss = valid(model, valid_loader, writer, epoch)
             if valid_loss < best_dev_loss:
                 print("Get a smaller valid loss, update the best valid loss")
                 sys.stdout.flush()
@@ -286,7 +286,8 @@ def main(args):
                 print("Early stop due to run out of patience!!")
                 sys.stdout.flush()
                 break
-        print("Total training time: %.2f" % float(time.time() - start) / 60.00)
+        time_elapsed = float(time.time() - start) / 60.00
+        print("Total training time: %.2f" % time_elapsed)
         return ckpt_dir, ckpt_name
     # Inference only
     else:
