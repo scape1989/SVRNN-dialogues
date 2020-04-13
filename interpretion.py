@@ -8,7 +8,7 @@ import torch
 from beeprint import pp
 
 import params
-from models.vrnn import VRNN
+from models.linear_vrnn import LinearVRNN
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
 
 
@@ -81,7 +81,8 @@ def get_state_sents(state,
                 if converted_sents[i][j][sys_side]:
                     last_n_sents = [
                         converted_sents[i][j - i_last_n][sys_side]
-                        for i_last_n in range(last_n) if (j - i_last_n) >= 0
+                        for i_last_n in range(last_n)
+                        if (j - i_last_n) >= 0
                     ]
                     last_n_sents = last_n_sents[::-1]
                     last_n_sents = "\n ".join(last_n_sents)
@@ -91,6 +92,18 @@ def get_state_sents(state,
 
 
 def main(args):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--ckpt_dir',
+                        type=str,
+                        help='Directory of the saved checkpoint')
+    parser.add_argument('--ckpt_name',
+                        type=str,
+                        help='Name of the saved model checkpoint')
+
+    parser.add_argument('--with_start', default=True, type=bool)
+    args = parser.parse_args(args)
+
     with open(params.api_dir, "rb") as fh:
         api2 = pkl.load(fh, encoding='latin1')
 
@@ -172,8 +185,7 @@ def main(args):
     transition_prob = np.zeros((params.n_state, params.n_state))
     for i in range(params.n_state):
         if transition_count[i].sum() != 0:
-            transition_prob[i] = transition_count[i] / transition_count[i].sum(
-            )
+            transition_prob[i] = transition_count[i] / transition_count[i].sum()
 
     # direct transition only, for direct transition, the transition probs are from the fetch_results from the model
     if params.with_direct_transition:
@@ -224,17 +236,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--ckpt_dir',
-                        type=str,
-                        help='Directory of the saved checkpoint')
-    parser.add_argument('--ckpt_name',
-                        type=str,
-                        help='Name of the saved model checkpoint')
-
-    parser.add_argument('--with_start', default=True, type=bool)
-
-    args = parser.parse_args()
-
-    main(args)
+    main(sys.argv[1:])

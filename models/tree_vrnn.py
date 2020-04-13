@@ -22,6 +22,7 @@ def show_deps(tree):
 
 
 class TreeVRNN(nn.Module):
+
     def __init__(self):
         super(TreeVRNN, self).__init__()
 
@@ -78,8 +79,7 @@ class TreeVRNN(nn.Module):
                 sent_embedding[i] = sent_embeddings[i, enc_lens[i] - 1, :]
 
         sent_embedding = sent_embedding.view(
-            -1, params.max_dialog_len,
-            params.encoding_cell_size)  # (5, 9, 400)
+            -1, params.max_dialog_len, params.encoding_cell_size)  # (5, 9, 400)
 
         if params.dropout not in (None, 0):
             sent_embedding = self.dropout(sent_embedding)

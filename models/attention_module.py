@@ -8,6 +8,7 @@ import torch_struct
 
 
 class Attn(nn.Module):
+
     def __init__(self, method, query_size, hidden_size):
         super(Attn, self).__init__()
 
@@ -39,8 +40,8 @@ class Attn(nn.Module):
                 attn_energies[i] = self.score(query[b, :], encoder_outputs[b,
                                                                            i])
             # Normalize energies to weights in range 0 to 1, resize to B x S
-            c = F.softmax(attn_energies, dim=0).matmul(
-                encoder_outputs[b, :this_len, :])
+            c = F.softmax(attn_energies,
+                          dim=0).matmul(encoder_outputs[b, :this_len, :])
             context.append(c)
         return torch.stack(context)
 

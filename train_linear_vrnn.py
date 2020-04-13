@@ -1,4 +1,3 @@
-
 from __future__ import print_function
 
 import random
@@ -16,6 +15,7 @@ from beeprint import pp
 from models.linear_vrnn import LinearVRNN
 from data_apis.data_utils import SWDADataLoader
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
+from torch.utils.tensorboard import SummaryWriter
 from utils.loss import print_loss
 import params
 
@@ -42,7 +42,7 @@ def get_dataset(device):
     return train_loader, valid_loader, test_loader, np.array(api.word2vec)
 
 
-def train(model, train_loader, optimizer):
+def train(model, train_loader, optimizer, writer):
     elbo_t = []
     rc_loss = []
     kl_loss = []
@@ -64,6 +64,13 @@ def train(model, train_loader, optimizer):
         rc_loss.append(loss[1].data)
         kl_loss.append(loss[2].data)
         bow_loss.append(loss[3].data)
+        writer.add_scalars(
+            'Loss/train', {
+                'elbo_t': loss[0].data,
+                'rc_loss': loss[1].data,
+                'kl_loss': loss[2].data,
+                'bow_loss': loss[3].data
+            }, local_t)
         loss[0].backward(
         )  # loss[0] = elbo_t = rc_loss + weight_kl * kl_loss + weight_bow * bow_loss
         optimizer.step()
@@ -79,15 +86,18 @@ def train(model, train_loader, optimizer):
                "step time %.4f" % (epoch_time / train_loader.num_batch))
 
 
-def valid(model, valid_loader):
+def valid(model, valid_loader, writer):
     elbo_t = []
     model.eval()
+    local_t = 0
     while True:
         batch = valid_loader.next_batch()
         if batch is None:
             break
+        local_t += 1
         loss = model(*batch)
         elbo_t.append(loss[0].data)
+        writer.add_scalar('Loss/train/elbo_t', loss[0].data, local_t)
 
     print_loss("Valid", ["elbo_t"], [elbo_t], "")
     return torch.mean(torch.stack(elbo_t))
@@ -106,31 +116,80 @@ def decode(model, data_loader):
 
 
 def main(args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--decode',
+                        dest='forward_only',
+                        action='store_true',
+                        help='Decoding mode')
+    parser.add_argument('--train',
+                        dest='forward_only',
+                        action='store_false',
+                        help='Training mode')
+    parser.set_defaults(forward_only=False)
+
+    parser.add_argument('--resume',
+                        dest='resume',
+                        action='store_true',
+                        help='Resume training from checkpoint')
+    parser.add_argument('--no_resume',
+                        dest='resume',
+                        action='store_false',
+                        help='Training from scratch')
+    parser.set_defaults(resume=False)
+
+    parser.add_argument(
+        '--ckpt_dir',
+        default='',
+        type=str,
+        help='The directory to load the checkpoint, e.g. run1585003537')
+    parser.add_argument(
+        '--ckpt_name',
+        default='',
+        type=str,
+        help='Name of the saved model checkpoint, e.g. vrnn_60.pt')
+
+    parser.add_argument('--save_model',
+                        dest='save_model',
+                        action='store_true',
+                        help='Saving checkpoints')
+    parser.add_argument('--no_save_model',
+                        dest='save_model',
+                        action='store_false',
+                        help='Not saving checkpoints')
+    parser.set_defaults(save_model=True)
+
+    args = parser.parse_args(args)
+    print(args)
     pp(params)
     # set random seeds
     seed = params.seed
     random.seed(seed)
     np.random.seed(seed + 1)
     torch.manual_seed(seed + 2)
-    
-    print("Available gpus: %d" % torch.cuda.device_count())
+
+    print("Available GPUs: %d" % torch.cuda.device_count())
     sys.stdout.flush()
     use_cuda = params.use_cuda and torch.cuda.is_available()
     if use_cuda:
-        device = torch.device("cuda:7")
+        assert params.gpu_idx < torch.cuda.device_count(
+        ), "params.gpu_idx must be one of the available GPUs"
+        device = torch.device("cuda:" + str(params.gpu_idx))
         torch.cuda.set_device(device)
-        print("Current gpu: %d" % torch.cuda.current_device())
+        print("Current GPU: %d" % torch.cuda.current_device())
         sys.stdout.flush()
     else:
         device = torch.device("cpu")
-    
+        print("Using CPU for training, you poor kid :)")
+
     train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 
     if args.forward_only or args.resume:
         log_dir = os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir)
-        checkpoint_path = os.path.join(log_dir, "linear_vrnn", args.ckpt_name)
+        checkpoint_path = os.path.join(log_dir, args.ckpt_name)
     else:
-        log_dir = os.path.join(params.log_dir, "linear_vrnn", "run" + str(int(time.time())))
+        ckpt_dir = "run" + str(int(time.time()))
+        log_dir = os.path.join(params.log_dir, "linear_vrnn", ckpt_dir)
+        writer = SummaryWriter(log_dir=log_dir)
     os.makedirs(log_dir, exist_ok=True)
 
     model = LinearVRNN().to(device)
@@ -172,6 +231,7 @@ def main(args):
     dev_loss_threshold = np.inf
     best_dev_loss = np.inf
     if not args.forward_only:
+        start = time.time()
         for epoch in range(last_epoch + 1, params.max_epoch + 1):
             print(">> Epoch %d" % (epoch))
             sys.stdout.flush()
@@ -181,12 +241,12 @@ def main(args):
 
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
-            train(model, train_loader, optimizer)
+            train(model, train_loader, optimizer, writer)
 
             print("Best valid loss so far %f" % best_dev_loss)
             sys.stdout.flush()
             valid_loader.epoch_init(params.batch_size, shuffle=False)
-            valid_loss = valid(model, valid_loader)
+            valid_loss = valid(model, valid_loader, writer)
             if valid_loss < best_dev_loss:
                 print("Get a smaller valid loss, update the best valid loss")
                 sys.stdout.flush()
@@ -205,22 +265,21 @@ def main(args):
                         'state_dict': model.state_dict(),
                         'optimizer': optimizer.state_dict(),
                     }
-                    torch.save(
-                        state,
-                        os.path.join(log_dir, "vrnn_" + str(epoch) + ".pt"))
-                    
-
+                    ckpt_name = "vrnn_" + str(epoch) + ".pt"
+                    torch.save(state, os.path.join(log_dir, ckpt_name))
             if params.early_stop and patience <= epoch:
                 print("Early stop due to run out of patience!!")
                 sys.stdout.flush()
                 break
+        print("Total training time: %.2f" % (time.time() - start) / 60)
+        return ckpt_dir, ckpt_name
     # Inference only
     else:
         state = torch.load(checkpoint_path)
         print("Load model from %s" % checkpoint_path)
         sys.stdout.flush()
         model.load_state_dict(state['state_dict'])
-        if not args.use_test_batch:
+        if not params.use_test_batch:
             train_loader.epoch_init(params.batch_size, shuffle=False)
             results = decode(model, train_loader)
         else:
@@ -233,35 +292,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--forward_only',
-                        default=False,
-                        type=bool,
-                        help='Whether only do decoding')
-    parser.add_argument('--resume',
-                        default=False,
-                        type=bool,
-                        help='Resume training from checkpoint')
-    parser.add_argument(
-        '--ckpt_dir',
-        default='',
-        type=str,
-        help='The directory to load the checkpoint, e.g. run1585003537')
-    parser.add_argument(
-        '--ckpt_name',
-        default='',
-        type=str,
-        help='Name of the saved model checkpoint, e.g. vrnn_60.pt')
-    parser.add_argument('--save_model',
-                        default=True,
-                        type=bool,
-                        help='whether save checkpoints')
-    parser.add_argument(
-        '--use_test_batch',
-        default=False,
-        type=bool,
-        help='Whether use test dataset for structure interpretion')
-
-    args = parser.parse_args()
-
-    main(args)
+    main(sys.argv[1:])

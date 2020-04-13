@@ -14,6 +14,7 @@ import torch_struct
 
 
 class LinearVAECell(nn.Module):
+
     def __init__(self, state_is_tuple=True):
         super(LinearVAECell, self).__init__()
 
@@ -142,8 +143,8 @@ class LinearVAECell(nn.Module):
                                       1), :, :]  # batch x utt x 2 x 210
             X_prev_3d = X_prev.contiguous().view(params.batch_size * utt_index,
                                                  2, 210)
-            X_cur_3d = X_cur.contiguous().view(params.batch_size * utt_index,
-                                               2, 210)
+            X_cur_3d = X_cur.contiguous().view(params.batch_size * utt_index, 2,
+                                               210)
 
             # X^K dot X^{K+1}
             X_prev_times_X_cur = X_prev_3d.bmm(X_cur_3d.transpose(1, 2)).view(
@@ -193,11 +194,11 @@ class LinearVAECell(nn.Module):
                     lengths = torch.tensor([utt_index + 1] * params.batch_size)
                     if params.use_cuda and torch.cuda.is_available():
                         lengths = lengths.cuda()
-                    dist = torch_struct.LinearChainCRF(log_potentials, lengths=lengths)
+                    dist = torch_struct.LinearChainCRF(log_potentials,
+                                                       lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
-                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(
-                        1)
+                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(1)
                     context = context / utt_index  # normalize attention)
                 dec_input_new = torch.cat(
                     [dec_input_embedding[0][:, t, :], context],
@@ -207,7 +208,7 @@ class LinearVAECell(nn.Module):
                 temp_out_1, (hidden_input_1, cell_input_1) = self.dec_rnn_1(
                     dec_input_new, (hidden_input_1, cell_input_1))
                 all_outs_1[:, t, :] = temp_out_1.squeeze(1)
-            
+
             dec_outs_1 = self.dropout(all_outs_1)
             dec_outs_1 = self.dec_fc_1(dec_outs_1)
 
@@ -255,11 +256,11 @@ class LinearVAECell(nn.Module):
                     lengths = torch.tensor([utt_index + 1] * params.batch_size)
                     if params.use_cuda and torch.cuda.is_available():
                         lengths = lengths.cuda()
-                    dist = torch_struct.LinearChainCRF(log_potentials, lengths=lengths)
+                    dist = torch_struct.LinearChainCRF(log_potentials,
+                                                       lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
-                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(
-                        1)
+                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(1)
                     context = context / utt_index  # normalize attention
 
                 dec_input_new = torch.cat(
@@ -282,8 +283,7 @@ class LinearVAECell(nn.Module):
             bow_fc1 = torch.tanh(bow_fc1)
             if params.dropout not in (None, 0):
                 bow_fc1 = self.dropout(bow_fc1)
-            bow_logits1 = self.bow_project1(
-                bow_fc1)  # [batch_size, vocab_size]
+            bow_logits1 = self.bow_project1(bow_fc1)  # [batch_size, vocab_size]
 
             bow_fc2 = self.bow_fc2(torch.squeeze(dec_input_2_h, dim=0))
             bow_fc2 = torch.tanh(bow_fc2)

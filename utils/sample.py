@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 import params
 
+
 # Thanks for the implementation at https://github.com/dev4488/VAE_gumble_softmax/blob/master/vae_gumbel_softmax.py
 # Note: PyTorch also has this in their official API now.
 def sample_gumbel(shape, eps=1e-20, device='cpu'):

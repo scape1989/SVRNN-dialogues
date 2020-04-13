@@ -12,6 +12,7 @@ import params
 
 
 class TreeVAECell(nn.Module):
+
     def __init__(self, state_is_tuple=True):
         super(TreeVAECell, self).__init__()
 

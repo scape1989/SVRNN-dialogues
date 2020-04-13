@@ -22,10 +22,7 @@ def get_dataset(device):
     vocab = Vocab(params.vocab_path, params.max_vocab_cnt, params.use_glove,
                   params.glove_path)
 
-    train_loader = Batcher(params.data_path,
-                           vocab,
-                           mode="train",
-                           device=device)
+    train_loader = Batcher(params.data_path, vocab, mode="train", device=device)
     valid_loader = Batcher(params.eval_data_path,
                            vocab,
                            mode="eval",
@@ -114,7 +111,6 @@ def main():
                               lr=params.init_lr,
                               weight_decay=params.lr_decay)
 
-
     # write config to a file for logging
     if not args.forward_only:
         with open(os.path.join(log_dir, "run.log"), "w") as f:
@@ -172,8 +168,8 @@ def main():
                         'optimizer': optimizer.state_dict(),
                     }
                     torch.save(
-                        state,
-                        os.path.join(log_dir, "vrnn_" + str(step) + ".pt"))
+                        state, os.path.join(log_dir,
+                                            "vrnn_" + str(step) + ".pt"))
 
             if params.early_stop and patience <= step:
                 print("Early stop due to run out of patience!!")

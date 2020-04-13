@@ -5,6 +5,7 @@ from torch.nn import init
 
 
 class MLP(nn.Module):
+
     def __init__(self,
                  input_size,
                  output_sizes,
@@ -14,7 +15,7 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
 
         dims = [input_size
-                ] + [output_sizes[i] for i in range(len(output_sizes))]
+               ] + [output_sizes[i] for i in range(len(output_sizes))]
 
         self._has_bias = has_bias
         self._activate_final = activate_final

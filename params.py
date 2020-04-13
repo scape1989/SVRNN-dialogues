@@ -1,6 +1,8 @@
 """Global parameters.
 """
-use_cuda = True
+max_epoch = 5  # max number of epoch of training
+use_cuda = False
+gpu_idx = 7
 seed = 233
 max_vocab_cnt = 10000
 word2vec_path = None  # The path to word2vec. Can be None.
@@ -8,6 +10,7 @@ data_dir = "data/data.pkl"  # Raw data directory.
 log_dir = "log"  # Experiment results directory.
 use_glove = False
 glove_path = "/home/liang/Workspace/Corpus/glove.840B.300d.txt"
+use_test_batch = False  # Use test dataset for structure interpretion
 
 # Weather and Restaurant Corpus
 api_dir = "data/cambridge_data/api_cambridge.txt"  # "data/api_simdial_weather.pkl"#"data/cambridge_data/api_cambridge.pkl"
@@ -45,7 +48,6 @@ attention_type = "concat"  #dot, general, concat
 
 # Optimization parameters
 op = "adam"  # adam, rmsprop, sgd
-max_epoch = 60  # max number of epoch of training
 grad_clip = 5.0  # gradient abs max cut
 init_w = 0.08  # uniform random from [-init_w, init_w]
 batch_size = 16  # mini-batch size

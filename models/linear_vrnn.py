@@ -19,6 +19,7 @@ class LinearVRNN(nn.Module):
     """
     VRNN with gumbel-softmax
     """
+
     def __init__(self):
         super(LinearVRNN, self).__init__()
 
@@ -90,12 +91,10 @@ class LinearVRNN(nn.Module):
 
         for i in range(usr_sent_embedding.shape[0]):
             if usr_sent_len[i] > 0:
-                usr_sent_embedding[i] = usr_sent_embeddings[i,
-                                                            usr_sent_len[i] -
+                usr_sent_embedding[i] = usr_sent_embeddings[i, usr_sent_len[i] -
                                                             1, :]
             if sys_sent_len[i] > 0:
-                sys_sent_embedding[i] = sys_sent_embeddings[i,
-                                                            sys_sent_len[i] -
+                sys_sent_embedding[i] = sys_sent_embeddings[i, sys_sent_len[i] -
                                                             1, :]
 
         usr_sent_embedding = usr_sent_embedding.view(
@@ -126,9 +125,7 @@ class LinearVRNN(nn.Module):
             usr_input_sent)  # (16, 10, 40, 300)
         dec_input_embedding_sys = self.embedding(
             sys_input_sent)  # (16, 10, 40, 300)
-        dec_input_embedding = [
-            dec_input_embedding_usr, dec_input_embedding_sys
-        ]
+        dec_input_embedding = [dec_input_embedding_usr, dec_input_embedding_sys]
 
         dec_seq_lens_usr = torch.sum(torch.sign(usr_input_mask),
                                      dim=2)  # (16, 10)
