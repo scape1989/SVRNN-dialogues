@@ -257,8 +257,7 @@ def main(args):
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
     plt.axis('off')
     # plt.show()
-
-    fig = plt.figure()
+    fig = plt.gcf()
     writer.add_figure('structure', fig)
     writer.close()
 
