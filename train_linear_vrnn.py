@@ -197,13 +197,9 @@ def main(args):
 
     model = LinearVRNN().to(device)
     if params.op == "adam":
-        optimizer = optim.Adam(model.parameters(),
-                               lr=params.init_lr,
-                               weight_decay=params.lr_decay)
+        optimizer = optim.Adam(model.parameters(), lr=params.init_lr)
     elif params.op == "rmsprop":
-        optimizer = optim.RMSprop(model.parameters(),
-                                  lr=params.init_lr,
-                                  weight_decay=params.lr_decay)
+        optimizer = optim.RMSprop(model.parameters(), lr=params.init_lr)
     else:
         optimizer = optim.SGD(model.parameters(),
                               lr=params.init_lr,
@@ -226,8 +222,7 @@ def main(args):
                 param_vars.append(var)
         params_dict = {
             var: getattr(params, var)
-            for var in param_vars
-            if getattr(params, var) != None
+            for var in param_vars if getattr(params, var) != None
         }
         writer.add_hparams(params_dict, {"NA": 0})
 

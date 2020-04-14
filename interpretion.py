@@ -243,21 +243,22 @@ def main(args):
                 edge_labels[(i, j)] = "%.2f" % transition_prob[i, j]
 
     pos = nx.spring_layout(G)
-    node_width = [10 * len(node_labels[node]) for node in G.nodes()]
+    node_width = [5 * len(node_labels[node]) for node in G.nodes()]
     draw_networkx_nodes_ellipses(G,
                                  pos=pos,
                                  node_width=node_width,
-                                 node_height=20,
+                                 node_height=10,
                                  node_color='w',
                                  edge_color='k',
                                  alpha=1.0)
 
-    nx.draw_networkx_labels(G, pos=pos, labels=node_labels)
+    nx.draw_networkx_labels(G, pos=pos, labels=node_labels, font_size=7)
     nx.draw_networkx_edges(G, pos=pos, arrows=True)
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=7)
     plt.axis('off')
-    # plt.show()
     fig = plt.gcf()
+    fig.set_size_inches(8, 8)
+    # plt.show()
     writer.add_figure('structure', fig)
     writer.close()
 
