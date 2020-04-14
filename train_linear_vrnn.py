@@ -226,7 +226,8 @@ def main(args):
                 param_vars.append(var)
         params_dict = {
             var: getattr(params, var)
-            for var in param_vars if getattr(params, var) != None
+            for var in param_vars
+            if getattr(params, var) != None
         }
         writer.add_hparams(params_dict, {"NA": 0})
 

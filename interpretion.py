@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 import params
 from models.linear_vrnn import LinearVRNN
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
-from utils.draw_graph import draw_networkx_nodes_ellipses
+from utils.draw_struct import draw_networkx_nodes_ellipses
 
 
 def softmax(x):
@@ -105,7 +105,7 @@ def main(args):
                         type=str,
                         help='Name of the saved model checkpoint')
 
-    parser.add_argument('--with_start', default=True, type=bool)
+    parser.add_argument('--with_start', default=False, type=bool)
     args = parser.parse_args(args)
 
     with open(params.api_dir, "rb") as fh:
@@ -178,6 +178,7 @@ def main(args):
                             sys_side=1,
                             last_n=1))
 
+    # TODO: n_state become 11
     if args.with_start:
         sents_by_state = [['START']] + sents_by_state
         sents_by_state_sys = [['START']] + sents_by_state_sys
@@ -222,28 +223,41 @@ def main(args):
 
         transition_prob = prob_list
 
+    print("transition probability:")
     print(transition_prob)
+    print("\n")
 
-    G = nx.Graph()
+    #  draw the interpretion with networkx and matplotlib
+    G = nx.DiGraph()
     node_labels = {}
     for i in range(params.n_state):
+        print("Most common sentences in state %d" % i)
         print(Counter(sents_by_state[i]).most_common(5))
         G.add_node(i)
         node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
     edge_labels = {}
     for i in range(params.n_state):
         for j in range(params.n_state):
-            if transition_prob[i, j] > 0.1:
+            if transition_prob[i, j] > 0.13:
                 G.add_edge(i, j)
                 edge_labels[(i, j)] = "%.2f" % transition_prob[i, j]
-    # nx.draw(G, labels=node_labels, with_labels=True)
+
     pos = nx.spring_layout(G)
-    node_width = [1 * len(node_labels[node]) for node in G.nodes()]
-    nodes = draw_networkx_nodes_ellipses(G, pos=pos, node_width=node_width)
-    print(plt)
-    plt.show()
-    # nx.draw_networkx_nodes(G, pos=pos, node_size=node_width)
-    # nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    node_width = [10 * len(node_labels[node]) for node in G.nodes()]
+    draw_networkx_nodes_ellipses(G,
+                                 pos=pos,
+                                 node_width=node_width,
+                                 node_height=20,
+                                 node_color='w',
+                                 edge_color='k',
+                                 alpha=1.0)
+
+    nx.draw_networkx_labels(G, pos=pos, labels=node_labels)
+    nx.draw_networkx_edges(G, pos=pos, arrows=True)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    plt.axis('off')
+    # plt.show()
+
     fig = plt.figure()
     writer.add_figure('structure', fig)
     writer.close()
