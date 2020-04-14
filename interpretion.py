@@ -1,11 +1,14 @@
 import argparse
 from collections import Counter
 import os
+import sys
 
 import pickle as pkl
 import numpy as np
 import torch
+import networkx as nx
 from beeprint import pp
+import matplotlib.pyplot as plt
 
 import params
 from models.linear_vrnn import LinearVRNN
@@ -81,8 +84,7 @@ def get_state_sents(state,
                 if converted_sents[i][j][sys_side]:
                     last_n_sents = [
                         converted_sents[i][j - i_last_n][sys_side]
-                        for i_last_n in range(last_n)
-                        if (j - i_last_n) >= 0
+                        for i_last_n in range(last_n) if (j - i_last_n) >= 0
                     ]
                     last_n_sents = last_n_sents[::-1]
                     last_n_sents = "\n ".join(last_n_sents)
@@ -185,7 +187,8 @@ def main(args):
     transition_prob = np.zeros((params.n_state, params.n_state))
     for i in range(params.n_state):
         if transition_count[i].sum() != 0:
-            transition_prob[i] = transition_count[i] / transition_count[i].sum()
+            transition_prob[i] = transition_count[i] / transition_count[i].sum(
+            )
 
     # direct transition only, for direct transition, the transition probs are from the fetch_results from the model
     if params.with_direct_transition:
@@ -217,22 +220,37 @@ def main(args):
 
     print(transition_prob)
 
-    Counter(sents_by_state[0]).most_common(5)
-    Counter(sents_by_state[1]).most_common(5)
-    Counter(sents_by_state[2]).most_common(5)
-    Counter(sents_by_state[3]).most_common(5)
-    Counter(sents_by_state[4]).most_common(5)
-    Counter(sents_by_state[5]).most_common(5)
-    Counter(sents_by_state[6]).most_common(5)
-    Counter(sents_by_state[7]).most_common(5)
-    Counter(sents_by_state[8]).most_common(5)
-    Counter(sents_by_state[9]).most_common(5)
-    Counter(sents_by_state[10]).most_common(5)
+    # Counter(sents_by_state[0]).most_common(5)
+    # Counter(sents_by_state[1]).most_common(5)
+    # Counter(sents_by_state[2]).most_common(5)
+    # Counter(sents_by_state[3]).most_common(5)
+    # Counter(sents_by_state[4]).most_common(5)
+    # Counter(sents_by_state[5]).most_common(5)
+    # Counter(sents_by_state[6]).most_common(5)
+    # Counter(sents_by_state[7]).most_common(5)
+    # Counter(sents_by_state[8]).most_common(5)
+    # Counter(sents_by_state[9]).most_common(5)
+    # Counter(sents_by_state[10]).most_common(5)
 
-    for i in range(params.n_state):
-        print(i)
-        print(Counter(sents_by_state[i]).most_common(10))
-        print("\n")
+    G = nx.Graph()
+    # for i in range(params.n_state):
+    #     # print(Counter(sents_by_state[i]).most_common(1))
+    #     G.add_node(
+    #         i,
+    #         attr_dict={'text': Counter(sents_by_state[i]).most_common(1)[0]})
+
+    # for i in range(params.n_state):
+    #     for j in range(params.n_state):
+    #         if transition_prob[i, j] > 0.5:
+    #             G.add_edge(i, j, weight=transition_prob[i, j])
+        # print(i)
+
+        # print("\n")
+    G.add_node(1)
+    G.add_node(2)
+    G.add_edge(1, 2, weight=0.6)
+    nx.draw(G)
+    plt.show()
 
 
 if __name__ == "__main__":
