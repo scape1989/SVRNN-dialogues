@@ -9,10 +9,12 @@ import torch
 import networkx as nx
 from beeprint import pp
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
 import params
 from models.linear_vrnn import LinearVRNN
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
+from utils.draw_graph import draw_networkx_nodes_ellipses
 
 
 def softmax(x):
@@ -117,6 +119,8 @@ def main(args):
     state = torch.load(
         os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir,
                      args.ckpt_name))
+    writer = SummaryWriter(
+        log_dir=os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir))
     # pp(state['state_dict'])
 
     converted_labels = []
@@ -220,37 +224,29 @@ def main(args):
 
     print(transition_prob)
 
-    # Counter(sents_by_state[0]).most_common(5)
-    # Counter(sents_by_state[1]).most_common(5)
-    # Counter(sents_by_state[2]).most_common(5)
-    # Counter(sents_by_state[3]).most_common(5)
-    # Counter(sents_by_state[4]).most_common(5)
-    # Counter(sents_by_state[5]).most_common(5)
-    # Counter(sents_by_state[6]).most_common(5)
-    # Counter(sents_by_state[7]).most_common(5)
-    # Counter(sents_by_state[8]).most_common(5)
-    # Counter(sents_by_state[9]).most_common(5)
-    # Counter(sents_by_state[10]).most_common(5)
-
     G = nx.Graph()
-    # for i in range(params.n_state):
-    #     # print(Counter(sents_by_state[i]).most_common(1))
-    #     G.add_node(
-    #         i,
-    #         attr_dict={'text': Counter(sents_by_state[i]).most_common(1)[0]})
-
-    # for i in range(params.n_state):
-    #     for j in range(params.n_state):
-    #         if transition_prob[i, j] > 0.5:
-    #             G.add_edge(i, j, weight=transition_prob[i, j])
-        # print(i)
-
-        # print("\n")
-    G.add_node(1)
-    G.add_node(2)
-    G.add_edge(1, 2, weight=0.6)
-    nx.draw(G)
+    node_labels = {}
+    for i in range(params.n_state):
+        print(Counter(sents_by_state[i]).most_common(5))
+        G.add_node(i)
+        node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
+    edge_labels = {}
+    for i in range(params.n_state):
+        for j in range(params.n_state):
+            if transition_prob[i, j] > 0.1:
+                G.add_edge(i, j)
+                edge_labels[(i, j)] = "%.2f" % transition_prob[i, j]
+    # nx.draw(G, labels=node_labels, with_labels=True)
+    pos = nx.spring_layout(G)
+    node_width = [1 * len(node_labels[node]) for node in G.nodes()]
+    nodes = draw_networkx_nodes_ellipses(G, pos=pos, node_width=node_width)
+    print(plt)
     plt.show()
+    # nx.draw_networkx_nodes(G, pos=pos, node_size=node_width)
+    # nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    fig = plt.figure()
+    writer.add_figure('structure', fig)
+    writer.close()
 
 
 if __name__ == "__main__":

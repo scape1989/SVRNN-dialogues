@@ -10,13 +10,13 @@ import inspect
 import pickle as pkl
 import torch
 from torch import nn, optim
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 from beeprint import pp
 
 from models.linear_vrnn import LinearVRNN
 from data_apis.data_utils import SWDADataLoader
 from data_apis.SWDADialogCorpus import SWDADialogCorpus
-from torch.utils.tensorboard import SummaryWriter
 from utils.loss import print_loss
 import params
 
@@ -305,6 +305,7 @@ def main(args):
             )  # [num_batches(8), 4, batch_size(16), max_dialog_len(10), n_state(10)]
         with open(os.path.join(log_dir, "result.pkl"), "wb") as fh:
             pkl.dump(results, fh)
+    writer.close()
 
 
 if __name__ == "__main__":
