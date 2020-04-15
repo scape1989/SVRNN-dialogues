@@ -231,7 +231,4 @@ class LinearVRNN(nn.Module):
         if training:
             return elbo_t_avg, rc_loss_avg, kl_loss_avg, bow_loss_avg
         else:
-            return usr_input_sent.cpu().detach().numpy(), sys_input_sent.cpu(
-            ).detach(
-            ).numpy(), usr_sent_mask.cpu().detach().numpy(), sys_sent_mask.cpu(
-            ).detach().numpy(), z_ts, p_ts, bow_logits_1, bow_logits_2
+            return usr_input_sent.cpu().detach().numpy(), sys_input_sent.cpu().detach().numpy(), z_ts, p_ts, bow_logits_1, bow_logits_2
