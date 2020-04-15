@@ -54,18 +54,18 @@ def BPR_BOW_loss(output_tokens,
         log_p_z_prime = torch.log(p_z_prime + 1e-20)
 
         kl_loss = (log_q_z_prime - log_p_z_prime) * q_z_prime
-        # TODO: BPR?
-        kl_loss = params.kl_loss_weight * torch.sum(kl_loss)
-        # kl_loss = torch.div(torch.sum(kl_loss), params.batch_size)
+        kl_loss = torch.sum(kl_loss) * params.batch_size
+    kl_loss = params.kl_loss_weight * kl_loss
 
     elbo_t = rc_loss_1 + rc_loss_2 + kl_loss
 
     # BOW_loss
     bow_loss_1 = bow_loss_2 = 0
     if params.with_BOW:
-        tile_bow_logits1 = (torch.unsqueeze(bow_logits1, 1).repeat(
-            1, params.max_utt_len - 1, 1)).view(
-                -1, params.max_vocab_cnt)  # [batch * (max_utt - 1), vocab_size]
+        tile_bow_logits1 = (torch.unsqueeze(
+            bow_logits1, 1).repeat(1, params.max_utt_len - 1, 1)).view(
+                -1,
+                params.max_vocab_cnt)  # [batch * (max_utt - 1), vocab_size]
         tile_bow_logits2 = (torch.unsqueeze(bow_logits2, 1).repeat(
             1, params.max_utt_len - 1, 1)).view(-1, params.max_vocab_cnt)
 
@@ -134,9 +134,10 @@ def BPR_BOW_loss_single(output_tokens,
     # BOW_loss
     bow_loss = 0
     if params.with_BOW:
-        tile_bow_logits = (torch.unsqueeze(bow_logits, 1).repeat(
-            1, params.max_dec_steps, 1)).view(
-                -1, params.max_vocab_cnt)  # [batch * (max_utt - 1), vocab_size]
+        tile_bow_logits = (torch.unsqueeze(
+            bow_logits, 1).repeat(1, params.max_dec_steps, 1)).view(
+                -1,
+                params.max_vocab_cnt)  # [batch * (max_utt - 1), vocab_size]
 
         if params.word_weights is not None:
             bow_loss = nn.CrossEntropyLoss(weight=weights, reduction='none')(
