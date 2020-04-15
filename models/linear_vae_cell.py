@@ -14,7 +14,6 @@ import torch_struct
 
 
 class LinearVAECell(nn.Module):
-
     def __init__(self, state_is_tuple=True):
         super(LinearVAECell, self).__init__()
 
@@ -143,8 +142,8 @@ class LinearVAECell(nn.Module):
                                       1), :, :]  # batch x utt x 2 x 210
             X_prev_3d = X_prev.contiguous().view(params.batch_size * utt_index,
                                                  2, 210)
-            X_cur_3d = X_cur.contiguous().view(params.batch_size * utt_index, 2,
-                                               210)
+            X_cur_3d = X_cur.contiguous().view(params.batch_size * utt_index,
+                                               2, 210)
 
             # X^K dot X^{K+1}
             X_prev_times_X_cur = X_prev_3d.bmm(X_cur_3d.transpose(1, 2)).view(
@@ -157,21 +156,6 @@ class LinearVAECell(nn.Module):
                 if params.use_cuda and torch.cuda.is_available():
                     context = context.cuda()
                 if utt_index != None and utt_index >= 1:
-                    # TODO: this is redundant?
-                    # X_prev = input_query[:, :
-                    #                      utt_index, :, :]  # batch x utt x 2 x 210
-                    # X_cur = input_query[:,
-                    #                     1:(utt_index +
-                    #                        1), :, :]  # batch x utt x 2 x 210
-                    # X_prev_3d = X_prev.contiguous().view(
-                    #     params.batch_size * utt_index, 2, 210)
-                    # X_cur_3d = X_cur.contiguous().view(
-                    #     params.batch_size * utt_index, 2, 210)
-
-                    # #X^K dot X^{K+1}
-                    # X_prev_times_X_cur = X_prev_3d.bmm(X_cur_3d.transpose(
-                    #     1, 2)).view(params.batch_size, utt_index, 2, 2)
-
                     # TODO: verify this with structured attention network formula in 4.2
                     Q = torch.transpose(hidden_input_1, 0,
                                         1).unsqueeze(2).repeat(
@@ -198,7 +182,8 @@ class LinearVAECell(nn.Module):
                                                        lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
-                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(1)
+                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(
+                        1)
                     context = context / utt_index  # normalize attention)
                 dec_input_new = torch.cat(
                     [dec_input_embedding[0][:, t, :], context],
@@ -215,11 +200,6 @@ class LinearVAECell(nn.Module):
             dec_input_2_h = torch.cat(
                 [dec_input_1, hidden_input_1],
                 dim=2)  # [1, batch, 2 * (state_cell_size + 200)]
-            # TODO: init state of decoder_2?
-            # dec_input_2_c = torch.cat(
-            #     [dec_input_1, cell_input_1],
-            #     dim=2)  # [1, batch, 2 * (state_cell_size + 200)]
-
             # To keep two queries having the same dimension(state_cell_size + 200)
             all_outs_2 = torch.zeros(
                 batch_size, sentence_length,
@@ -260,14 +240,15 @@ class LinearVAECell(nn.Module):
                                                        lengths=lengths)
                     marginals_one_prob = dist.marginals.sum(-1)[:, :, 1]
                     marginals_one_prob = marginals_one_prob.unsqueeze(1)
-                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(1)
+                    context = marginals_one_prob.bmm(prev_embeddings).squeeze(
+                        1)
                     context = context / utt_index  # normalize attention
 
                 dec_input_new = torch.cat(
                     [dec_input_embedding[1][:, t, :], context],
                     dim=1).unsqueeze(1)
 
-                ##RNN one word at one time
+                # RNN one word at one time
                 temp_out_2, (hidden_input_2, cell_input_2) = self.dec_rnn_2(
                     dec_input_new, (hidden_input_2, cell_input_2))
 
@@ -283,7 +264,8 @@ class LinearVAECell(nn.Module):
             bow_fc1 = torch.tanh(bow_fc1)
             if params.dropout not in (None, 0):
                 bow_fc1 = self.dropout(bow_fc1)
-            bow_logits1 = self.bow_project1(bow_fc1)  # [batch_size, vocab_size]
+            bow_logits1 = self.bow_project1(
+                bow_fc1)  # [batch_size, vocab_size]
 
             bow_fc2 = self.bow_fc2(torch.squeeze(dec_input_2_h, dim=0))
             bow_fc2 = torch.tanh(bow_fc2)
