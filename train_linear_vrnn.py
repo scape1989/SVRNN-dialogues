@@ -21,17 +21,6 @@ from utils.loss import print_loss
 import params
 
 
-def id_to_sent(id_to_vocab, ids):
-    sent = []
-    for id in ids:
-        if id:
-            if id_to_vocab[id] != '<s>' and id_to_vocab[id] != '</s>':
-                sent.append(id_to_vocab[id])
-        else:
-            break
-    return " ".join(sent)
-
-
 def get_dataset(device):
     with open(params.api_dir, "rb") as fh:
         api = pkl.load(fh, encoding='latin1')
@@ -265,22 +254,6 @@ def main(args):
 
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
-
-            # debug input
-            batch = train_loader.next_batch()
-            usr_input_sent = batch[0]
-            sys_input_sent = batch[1]
-            user_dialog = []
-            for i in range(params.max_dialog_len):
-                user_dialog.append(
-                    id_to_sent(id_to_word,
-                               usr_input_sent[0][i].cpu().detach().numpy()))
-            sys_dialog = []
-            for i in range(params.max_dialog_len):
-                sys_dialog.append(
-                    id_to_sent(id_to_word,
-                               sys_input_sent[0][i].cpu().detach().numpy()))
-
             train(model, train_loader, optimizer, writer, epoch)
 
             print("Best valid loss before this validation: %f" % best_dev_loss)
