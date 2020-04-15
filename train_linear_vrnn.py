@@ -21,6 +21,17 @@ from utils.loss import print_loss
 import params
 
 
+def id_to_sent(id_to_vocab, ids):
+    sent = []
+    for id in ids:
+        if id:
+            if id_to_vocab[id] != '<s>' and id_to_vocab[id] != '</s>':
+                sent.append(id_to_vocab[id])
+        else:
+            break
+    return " ".join(sent)
+
+
 def get_dataset(device):
     with open(params.api_dir, "rb") as fh:
         api = pkl.load(fh, encoding='latin1')
@@ -40,7 +51,8 @@ def get_dataset(device):
                                                 params.max_utt_len,
                                                 params.max_dialog_len,
                                                 device=device)
-    return train_loader, valid_loader, test_loader, np.array(api.word2vec)
+    return train_loader, valid_loader, test_loader, np.array(
+        api.word2vec), api.id_to_vocab
 
 
 def train(model, train_loader, optimizer, writer, epoch):
@@ -183,7 +195,8 @@ def main(args):
         device = torch.device("cpu")
         print("Using CPU for training, you poor kid :)")
 
-    train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
+    train_loader, valid_loader, test_loader, word2vec, id_to_word = get_dataset(
+        device)
 
     if args.forward_only or args.resume:
         log_dir = os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir)
@@ -252,6 +265,22 @@ def main(args):
 
             if train_loader.num_batch is None or train_loader.ptr >= train_loader.num_batch:
                 train_loader.epoch_init(params.batch_size, shuffle=True)
+
+            # debug input
+            batch = train_loader.next_batch()
+            usr_input_sent = batch[0]
+            sys_input_sent = batch[1]
+            user_dialog = []
+            for i in range(params.max_dialog_len):
+                user_dialog.append(
+                    id_to_sent(id_to_word,
+                               usr_input_sent[0][i].cpu().detach().numpy()))
+            sys_dialog = []
+            for i in range(params.max_dialog_len):
+                sys_dialog.append(
+                    id_to_sent(id_to_word,
+                               sys_input_sent[0][i].cpu().detach().numpy()))
+
             train(model, train_loader, optimizer, writer, epoch)
 
             print("Best valid loss before this validation: %f" % best_dev_loss)

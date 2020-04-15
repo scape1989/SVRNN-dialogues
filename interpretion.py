@@ -129,15 +129,18 @@ def main(args):
     for batch_i in range(len(results)):
         usr_sents = results[batch_i][0]
         sys_sents = results[batch_i][1]
-        probs = results[batch_i][2]
-        trans_probs = results[batch_i][3]
-        bow_logits1 = results[batch_i][4]
-        bow_logits2 = results[batch_i][5]
+        usr_mask = results[batch_i][2]
+        sys_mask = results[batch_i][3]
+        probs = results[batch_i][4]
+        trans_probs = results[batch_i][5]
+        bow_logits1 = results[batch_i][6]
+        bow_logits2 = results[batch_i][7]
         for i in range(params.batch_size):
             this_dialog_labels = []
             this_dialog_sents = []
             prev_label = -1
             this_conv_prob = 1
+            print(usr_mask)
             for turn_j in range(params.max_dialog_len):
                 if not usr_sents[i, turn_j, 0]:
                     break
