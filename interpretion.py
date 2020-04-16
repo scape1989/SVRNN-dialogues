@@ -157,8 +157,8 @@ def main(args):
                 this_dialog_sents += [[usr_tokens, sys_tokens]]
                 this_turn_prob = usr_prob + sys_prob
                 this_conv_prob += this_turn_prob
-            print(this_dialog_sents)
-            print(this_dialog_labels)
+            # print(this_dialog_sents)
+            # print(this_dialog_labels)
             conv_probs.append(this_conv_prob)
             converted_labels.append(this_dialog_labels)
             converted_sents.append(this_dialog_sents)
@@ -235,6 +235,11 @@ def main(args):
     for i in range(params.n_state):
         print("Most common sentences in state %d" % i)
         print(Counter(sents_by_state[i]).most_common(5))
+        words_by_state = []
+
+        for sent in sents_by_state[i]:
+            words_by_state.extend(sent.split(" "))
+        print(Counter(words_by_state).most_common(10))
         G.add_node(i)
         node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
     edge_labels = {}
