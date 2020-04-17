@@ -225,20 +225,25 @@ def main(args):
 
         transition_prob = prob_list
 
-    print("transition probability:")
-    print(transition_prob)
-    print("\n")
+    # print("transition probability:")
+    # print(transition_prob)
+    # print("\n")
 
     #  draw the interpretion with networkx and matplotlib
     G = nx.DiGraph()
     node_labels = {}
+    stop_words = [
+        '[', ']', '.', '?', ',', 'the', 'i', 'you', 'a', 'is', 'and', 'please',
+        'that', 'what', 'for', 'to', 'there', 'restaurant'
+    ]
     for i in range(params.n_state):
-        print("Most common sentences in state %d" % i)
-        print(Counter(sents_by_state[i]).most_common(5))
+        print("Most common words in state %d" % i)
+        # print(Counter(sents_by_state[i]).most_common(5))
         words_by_state = []
-
         for sent in sents_by_state[i]:
-            words_by_state.extend(sent.split(" "))
+            words = sent.split(" ")
+            words = [w for w in words if w not in stop_words]
+            words_by_state.extend(words)
         print(Counter(words_by_state).most_common(10))
         G.add_node(i)
         node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
