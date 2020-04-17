@@ -246,7 +246,10 @@ def main(args):
             words_by_state.extend(words)
         print(Counter(words_by_state).most_common(10))
         G.add_node(i)
-        node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
+        # node_labels[i] = Counter(sents_by_state[i]).most_common(1)[0][0]
+        node_labels[i] = ','.join(
+            [w[0] for w in Counter(words_by_state).most_common(3)])
+
     edge_labels = {}
     for i in range(params.n_state):
         for j in range(params.n_state):
@@ -262,7 +265,7 @@ def main(args):
                                  node_height=10,
                                  node_color='w',
                                  edge_color='k',
-                                 alpha=1.0)
+                                 alpha=0.0)
 
     nx.draw_networkx_labels(G, pos=pos, labels=node_labels, font_size=7)
     nx.draw_networkx_edges(G, pos=pos, arrows=True)
