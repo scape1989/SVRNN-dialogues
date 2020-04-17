@@ -257,7 +257,7 @@ def main(args):
                 G.add_edge(i, j)
                 edge_labels[(i, j)] = "%.2f" % transition_prob[i, j]
 
-    pos = nx.spring_layout(G)
+    pos = nx.planar_layout(G)
     node_width = [5 * len(node_labels[node]) for node in G.nodes()]
     draw_networkx_nodes_ellipses(G,
                                  pos=pos,
@@ -273,7 +273,7 @@ def main(args):
     plt.axis('off')
     fig = plt.gcf()
     fig.set_size_inches(8, 8)
-    # plt.show()
+    plt.show()
     writer.add_figure('structure', fig)
     writer.close()
 

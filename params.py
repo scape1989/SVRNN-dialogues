@@ -1,6 +1,6 @@
 """Global parameters.
 """
-max_epoch = 2  # max number of epoch of training
+max_epoch = 60  # max number of epoch of training
 use_cuda = False
 gpu_idx = 7
 seed = 233
@@ -60,8 +60,8 @@ early_stop = True
 grad_noise = 0.0  # inject gradient noise?
 
 with_BOW = True
-kl_loss_weight = 100000  # weight of the kl_loss
-bow_loss_weight = 0.01  # weight of the bow_loss
+kl_loss_weight = 1  # weight of the kl_loss
+bow_loss_weight = 0.5  # weight of the bow_loss
 with_label_loss = False  # semi-supervised or not
 with_BPR = True
 with_direct_transition = False  # direct prior transition prob
