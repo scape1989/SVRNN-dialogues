@@ -4,7 +4,7 @@ max_epoch = 60  # max number of epoch of training
 use_cuda = False
 gpu_idx = 7
 seed = 233
-max_vocab_cnt = 500
+max_vocab_cnt = 400
 word2vec_path = None  # The path to word2vec. Can be None.
 log_dir = "log"  # Experiment results directory.
 use_glove = False
@@ -12,7 +12,7 @@ glove_path = "/home/liang/Workspace/Corpus/glove.840B.300d.txt"
 use_test_batch = False  # Use test dataset for structure interpretion
 
 # Weather, Restaurant, Simdial
-data_dir = "data/simdial/bus-CleanSpec-2000.pkl"  # Raw data directory.
+data_dir = "data/simdial/weather-CleanSpec-2000.pkl"  # Raw data directory. options: {bus, movie, restaurant, weather}
 api_dir = "data/cambridge_data/api_cambridge.pkl"  # "data/api_simdial_weather.pkl"
 rev_vocab_dir = "data/cambridge_data/rev_vocab.pkl"  # "data/weather_rev_vocab.pkl"
 
@@ -41,7 +41,7 @@ encoding_cell_size = 400  # size of the rnn
 state_cell_size = n_state
 embed_size = 300  # word embedding size
 max_utt_len = 40  # max number of words in an utterance
-max_dialog_len = 9  # max number of turns in a dialog
+max_dialog_len = 13  # max number of turns in a dialog
 num_layer = 1  # number of context RNN layers
 use_struct_attention = True
 attention_type = "concat"  #dot, general, concat

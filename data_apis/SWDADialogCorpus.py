@@ -99,7 +99,7 @@ class SWDADialogCorpus(object):
         print(
             "Load corpus with train size {}, valid size {}, \n raw vocab size {}, vocab size {} "
             "at cut_off {} OOV rate {}".format(
-                len(self.train_corpus), len(self.test_corpus), raw_vocab_size,
+                len(self.train_corpus[0]), len(self.test_corpus[0]), raw_vocab_size,
                 len(vocab_count), vocab_count[-1][1],
                 float(discard_wc) / len(all_words)))
 
