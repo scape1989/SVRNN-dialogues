@@ -1,6 +1,7 @@
 import os
 import json
 import pickle as pkl
+import random
 
 import numpy as np
 import networkx as nx
@@ -17,6 +18,13 @@ simdial_mix = [
     "restaurant-MixSpec-2000", "weather-MixSpec-2000"
 ]
 simdial_json_list = simdial_clean  # + simdial_mix
+
+dial2mix = [
+    "bus-CleanSpec-2000",
+    "movie-CleanSpec-2000",
+    "restaurant-CleanSpec-2000",
+]
+mix_data = {"train": [], "test": []}
 
 for simdial_json in simdial_json_list:
     with open(os.path.join("data/simdial", simdial_json + ".json"), "r") as f:
@@ -125,3 +133,14 @@ for simdial_json in simdial_json_list:
     }
     with open(os.path.join("data/simdial", simdial_json + ".pkl"), 'wb') as f:
         pkl.dump(data_to_write, f)
+
+    if simdial_json in dial2mix:
+        mix_data["train"] += train_dial
+        mix_data["test"] += test_dial
+
+random.shuffle(mix_data["train"])
+random.shuffle(mix_data["test"])
+
+with open(os.path.join("data/simdial", "-".join(dial2mix) + ".pkl"),
+          'wb') as f:
+    pkl.dump(mix_data, f)
