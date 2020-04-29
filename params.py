@@ -6,15 +6,15 @@ gpu_idx = 7
 seed = 233
 max_vocab_cnt = 500
 word2vec_path = None  # The path to word2vec. Can be None.
-data_dir = "data/data.pkl"  # Raw data directory.
 log_dir = "log"  # Experiment results directory.
 use_glove = False
 glove_path = "/home/liang/Workspace/Corpus/glove.840B.300d.txt"
 use_test_batch = False  # Use test dataset for structure interpretion
 
-# Weather and Restaurant Corpus
-api_dir = "data/cambridge_data/api_cambridge.txt"  # "data/api_simdial_weather.pkl"#"data/cambridge_data/api_cambridge.pkl"
-rev_vocab_dir = "data/cambridge_data/rev_vocab.pkl"  # "data/weather_rev_vocab.pkl"#"data/cambridge_data/rev_vocab.pkl"
+# Weather, Restaurant, Simdial
+data_dir = "data/simdial/bus-CleanSpec-2000.pkl"  # Raw data directory.
+api_dir = "data/cambridge_data/api_cambridge.pkl"  # "data/api_simdial_weather.pkl"
+rev_vocab_dir = "data/cambridge_data/rev_vocab.pkl"  # "data/weather_rev_vocab.pkl"
 
 # Ubuntu Dialog Corpus
 data_pre = "/home/liang/Workspace/Corpus/#ubuntu-2004/"

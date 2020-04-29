@@ -22,12 +22,14 @@ import params
 
 
 def get_dataset(device):
-    with open(params.api_dir, "rb") as fh:
-        api = pkl.load(fh, encoding='latin1')
+    # with open(params.api_dir, "rb") as fh:
+    #     api = pkl.load(fh, encoding='latin1')
+
+    api = SWDADialogCorpus(params.data_dir)
+
     dial_corpus = api.get_dialog_corpus()
 
-    train_dial, labeled_dial, test_dial = dial_corpus.get(
-        "train"), dial_corpus.get("labeled"), dial_corpus.get("test")
+    train_dial, test_dial = dial_corpus.get("train"), dial_corpus.get("test")
 
     # convert to numeric input outputs
     train_loader = SWDADataLoader("Train",
@@ -40,8 +42,10 @@ def get_dataset(device):
                                                 params.max_utt_len,
                                                 params.max_dialog_len,
                                                 device=device)
-    return train_loader, valid_loader, test_loader, np.array(
-        api.word2vec), api.id_to_vocab
+    if api.word2vec is not None:
+        return train_loader, valid_loader, test_loader, np.array(api.word2vec)
+    else:
+        return train_loader, valid_loader, test_loader, None
 
 
 def train(model, train_loader, optimizer, writer, epoch):
@@ -184,8 +188,7 @@ def main(args):
         device = torch.device("cpu")
         print("Using CPU for training, you poor kid :)")
 
-    train_loader, valid_loader, test_loader, word2vec, id_to_word = get_dataset(
-        device)
+    train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 
     if args.forward_only or args.resume:
         log_dir = os.path.join(params.log_dir, "linear_vrnn", args.ckpt_dir)

@@ -10,12 +10,25 @@ make install
 
 ## Dataset
 
+### SimDial
+
+Simulated dialogs in JSON are generated with code [here](https://github.com/snakeztc/SimDial).
+Generate samepls and interpretion by running
+
+```bash
+cd data/simdial/
+python read_simdial.py
+```
+
+### Ubuntu Chat Corpus
+
 First download the Ubuntu Chat Corpus from [here](https://daviduthus.org/UCC/).
 Then generate samples from the corpus by running
 
 ```bash
 make dataset data_path=path/to/your/ubuntu/corpus
 ```
+
 
 If you want to use GloVe, download it [here](https://nlp.stanford.edu/projects/glove/).
 

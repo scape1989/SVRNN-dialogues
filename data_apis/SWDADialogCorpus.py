@@ -52,9 +52,9 @@ class SWDADialogCorpus(object):
         if labeled:
             new_labels = []
         #
-        new_meta = []
+        # new_meta = []
         new_utts = []
-        bod_utt = ["<s>", "<d>", "</s>"]
+        # bod_utt = ["<s>", "<d>", "</s>"]
         all_lenes = []
 
         for l in data:
@@ -156,9 +156,10 @@ class SWDADialogCorpus(object):
 
         # convert the corpus into ID
         id_train = _to_id_corpus(self.train_corpus[self.utt_id])
-        id_valid = _to_id_corpus(self.valid_corpus[self.utt_id])
+        # id_valid = _to_id_corpus(self.valid_corpus[self.utt_id])
         id_test = _to_id_corpus(self.test_corpus[self.utt_id])
-        return {'train': id_train, 'valid': id_valid, 'test': id_test}
+        return {'train': id_train, 'test': id_test}
+        # return {'train': id_train, 'valid': id_valid, 'test': id_test}
 
     def get_dialog_corpus(self):
         def _to_id_corpus(data):
@@ -192,18 +193,18 @@ class SWDADialogCorpus(object):
             return {'train': id_train, 'test': id_test}
 
     def get_state_corpus(self, pad_to_length):
-        def _one_hot_encoding(data):
-            results = []
-            for dialog in data:
-                state_this_dialog = []
-                for s in dialog:
-                    enc = [0] * n_state
-                    enc[int(s)] = 1
-                    state_this_dialog.append(enc)
-                for _ in range(pad_to_length - len(dialog)):  # padding
-                    state_this_dialog.append([0] * n_state)
-                results.append(state_this_dialog)
-            return results
+        # def _one_hot_encoding(data):
+        #     results = []
+        #     for dialog in data:
+        #         state_this_dialog = []
+        #         for s in dialog:
+        #             enc = [0] * n_state
+        #             enc[int(s)] = 1
+        #             state_this_dialog.append(enc)
+        #         for _ in range(pad_to_length - len(dialog)):  # padding
+        #             state_this_dialog.append([0] * n_state)
+        #         results.append(state_this_dialog)
+        #     return results
 
         def _to_label_corpus(data):
             # enc = OneHoeEncoder(n_state)
@@ -224,14 +225,14 @@ class SWDADialogCorpus(object):
 
         return {'labeled': id_labeled}
 
-    def get_meta_corpus(self):
-        def _to_id_corpus(data):
-            results = []
-            for m_meta, o_meta, topic in data:
-                results.append((m_meta, o_meta, self.rev_topic_vocab[topic]))
-            return results
+    # def get_meta_corpus(self):
+    #     def _to_id_corpus(data):
+    #         results = []
+    #         for m_meta, o_meta, topic in data:
+    #             results.append((m_meta, o_meta, self.rev_topic_vocab[topic]))
+    #         return results
 
-        id_train = _to_id_corpus(self.train_corpus[self.meta_id])
-        id_valid = _to_id_corpus(self.valid_corpus[self.meta_id])
-        id_test = _to_id_corpus(self.test_corpus[self.meta_id])
-        return {'train': id_train, 'valid': id_valid, 'test': id_test}
+    #     id_train = _to_id_corpus(self.train_corpus[self.meta_id])
+    #     id_valid = _to_id_corpus(self.valid_corpus[self.meta_id])
+    #     id_test = _to_id_corpus(self.test_corpus[self.meta_id])
+    #     return {'train': id_train, 'valid': id_valid, 'test': id_test}
