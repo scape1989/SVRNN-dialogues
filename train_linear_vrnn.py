@@ -186,7 +186,7 @@ def main(args):
         sys.stdout.flush()
     else:
         device = torch.device("cpu")
-        print("Using CPU for training, you poor kid :)")
+        print("Using CPU for training")
 
     train_loader, valid_loader, test_loader, word2vec = get_dataset(device)
 
@@ -237,7 +237,7 @@ def main(args):
     if args.resume:
         print("Resuming training from %s" % checkpoint_path)
         sys.stdout.flush()
-        state = torch.load(checkpoint_path)
+        state = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(state['state_dict'])
         optimizer.load_state_dict(state['optimizer'])
         last_epoch = state['epoch']
@@ -292,7 +292,7 @@ def main(args):
         return ckpt_dir, ckpt_name
     # Inference only
     else:
-        state = torch.load(checkpoint_path)
+        state = torch.load(checkpoint_path, map_location=device)
         print("Load model from %s" % checkpoint_path)
         sys.stdout.flush()
         model.load_state_dict(state['state_dict'])

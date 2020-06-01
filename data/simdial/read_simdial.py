@@ -97,12 +97,12 @@ for simdial_json in simdial_json_list:
     node_labels = {}
     for i in range(len(act_set)):
         G.add_node(i)
-        node_labels[i] = act_set[i][:20]
+        node_labels[i] = act_set[i]
 
     edge_labels = {}
     for i in range(len(act_set)):
         for j in range(len(act_set)):
-            if trans_prob[i, j] > 0.1:
+            if trans_prob[i, j] > 0.0:
                 G.add_edge(i, j)
                 edge_labels[(i, j)] = "%.2f" % trans_prob[i, j]
 

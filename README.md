@@ -29,7 +29,6 @@ Then generate samples from the corpus by running
 make dataset data_path=path/to/your/ubuntu/corpus
 ```
 
-
 If you want to use GloVe, download it [here](https://nlp.stanford.edu/projects/glove/).
 
 ## Train  
